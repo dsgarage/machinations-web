@@ -116,6 +116,49 @@
             });
         }
 
+        // Reset
+        var btnReset = document.getElementById('btn-reset');
+        if (btnReset) {
+            btnReset.addEventListener('click', function() {
+                self.resetSimulation();
+            });
+        }
+
+        // Quick Run
+        var btnQuickRun = document.getElementById('btn-quickrun');
+        if (btnQuickRun) {
+            btnQuickRun.addEventListener('click', function() {
+                var steps = prompt('実行ステップ数を入力:', '100');
+                if (steps && !isNaN(parseInt(steps))) {
+                    if (self.engine.quickRun) {
+                        self.engine.quickRun(parseInt(steps));
+                    } else {
+                        // Fallback: run steps synchronously
+                        var count = parseInt(steps);
+                        if (self.graph.stepCount === 0) {
+                            self.engine._fireOnStartNodes();
+                        }
+                        for (var i = 0; i < count; i++) {
+                            self.engine.step();
+                        }
+                    }
+                    self.renderer.renderAll();
+                    self.updateStatus();
+                    self.propertiesPanel.refresh();
+                    self.setStatus('高速実行完了 (' + steps + 'ステップ)');
+                    self.saveHistory();
+                }
+            });
+        }
+
+        // Multiple Run (Monte Carlo)
+        var btnMultiRun = document.getElementById('btn-multirun');
+        if (btnMultiRun) {
+            btnMultiRun.addEventListener('click', function() {
+                self.showMonteCarloDialog();
+            });
+        }
+
         // Theme
         document.getElementById('btn-theme').addEventListener('click', function() {
             self.toggleTheme();
@@ -292,6 +335,138 @@
 
     App.prototype.setStatus = function(msg) {
         document.getElementById('status-info').textContent = msg;
+    };
+
+    // ===== Monte Carlo =====
+
+    App.prototype.showMonteCarloDialog = function() {
+        var runs = prompt('実行回数:', '100');
+        if (!runs || isNaN(parseInt(runs))) return;
+        var steps = prompt('1回あたりのステップ数:', '50');
+        if (!steps || isNaN(parseInt(steps))) return;
+
+        runs = parseInt(runs);
+        steps = parseInt(steps);
+
+        this.setStatus('モンテカルロ実行中... (' + runs + '回 × ' + steps + 'ステップ)');
+
+        var self = this;
+        // Use setTimeout to allow status to render
+        setTimeout(function() {
+            var results;
+            if (self.engine.multipleRun) {
+                results = self.engine.multipleRun(runs, steps);
+            } else {
+                // Fallback: manual multiple run implementation
+                results = self._runMonteCarlo(runs, steps);
+            }
+
+            // Restore graph state
+            self.graph = self.engine.graph;
+            self.renderer.graph = self.graph;
+            self.renderer.renderAll();
+            self.updateStatus();
+
+            // Show results in modal
+            self.showMonteCarloResults(results, runs, steps);
+        }, 50);
+    };
+
+    App.prototype._runMonteCarlo = function(runs, steps) {
+        var results = {};
+        var graph = this.graph;
+
+        // Collect pool node IDs and names before runs
+        var poolNodes = [];
+        var allNodes = graph.getAllNodes();
+        for (var n = 0; n < allNodes.length; n++) {
+            if (allNodes[n].type === 'pool') {
+                poolNodes.push({ id: allNodes[n].id, name: allNodes[n].properties.name });
+                results[allNodes[n].id] = { name: allNodes[n].properties.name, values: [] };
+            }
+        }
+
+        // Save initial state
+        var savedState = graph.toJSON();
+
+        for (var r = 0; r < runs; r++) {
+            // Reset graph to initial state
+            var freshGraph = M.Graph.fromJSON(savedState);
+            this.engine.graph = freshGraph;
+
+            // Fire onStart nodes
+            this.engine._fireOnStartNodes();
+
+            // Run steps
+            for (var s = 0; s < steps; s++) {
+                this.engine.step();
+            }
+
+            // Collect final pool values
+            for (var p = 0; p < poolNodes.length; p++) {
+                var node = freshGraph.getNode(poolNodes[p].id);
+                if (node) {
+                    results[poolNodes[p].id].values.push(node.resources);
+                }
+            }
+        }
+
+        // Restore original graph
+        var restoredGraph = M.Graph.fromJSON(savedState);
+        this.graph = restoredGraph;
+        this.engine.graph = restoredGraph;
+
+        return results;
+    };
+
+    App.prototype.showMonteCarloResults = function(results, runs, steps) {
+        var html = '<div class="modal-overlay" id="mc-modal" style="display:flex">';
+        html += '<div class="modal-content">';
+        html += '<div class="modal-header"><h2>モンテカルロ結果 (' + runs + '回 × ' + steps + 'ステップ)</h2>';
+        html += '<button class="modal-close-btn" onclick="document.getElementById(\'mc-modal\').remove()">&times;</button></div>';
+        html += '<div class="modal-body"><table style="width:100%;border-collapse:collapse">';
+        html += '<tr style="border-bottom:2px solid var(--border-color,#ccc)"><th style="text-align:left;padding:8px">プール</th><th>平均</th><th>標準偏差</th><th>最小</th><th>最大</th></tr>';
+
+        for (var nodeId in results) {
+            var r = results[nodeId];
+            var values = r.values;
+            if (!values || values.length === 0) continue;
+
+            var sum = 0, min = Infinity, max = -Infinity;
+            for (var i = 0; i < values.length; i++) {
+                sum += values[i];
+                if (values[i] < min) min = values[i];
+                if (values[i] > max) max = values[i];
+            }
+            var avg = sum / values.length;
+            var variance = 0;
+            for (var i = 0; i < values.length; i++) {
+                variance += (values[i] - avg) * (values[i] - avg);
+            }
+            var stdDev = Math.sqrt(variance / values.length);
+
+            html += '<tr style="border-bottom:1px solid var(--border-light,#eee)">';
+            html += '<td style="padding:8px">' + (r.name || nodeId) + '</td>';
+            html += '<td style="text-align:center">' + avg.toFixed(1) + '</td>';
+            html += '<td style="text-align:center">' + stdDev.toFixed(1) + '</td>';
+            html += '<td style="text-align:center">' + Math.round(min) + '</td>';
+            html += '<td style="text-align:center">' + Math.round(max) + '</td>';
+            html += '</tr>';
+        }
+
+        html += '</table></div></div></div>';
+
+        document.body.insertAdjacentHTML('beforeend', html);
+
+        // Click overlay to close
+        var modal = document.getElementById('mc-modal');
+        if (modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === this) this.remove();
+            });
+        }
+
+        this.setStatus('モンテカルロ完了');
     };
 
     // ===== Initialize =====

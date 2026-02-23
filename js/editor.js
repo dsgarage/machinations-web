@@ -30,6 +30,9 @@
         this._spaceDown = false;
         this._spaceUsedForPan = false;
 
+        // Clipboard for copy/paste
+        this._clipboard = null; // { nodes: [], connections: [] }
+
         this._init();
     }
 
@@ -163,6 +166,20 @@
             return;
         }
 
+        // Ctrl+C: Copy
+        if (ctrl && e.key === 'c') {
+            e.preventDefault();
+            this.copy();
+            return;
+        }
+
+        // Ctrl+V: Paste
+        if (ctrl && e.key === 'v') {
+            e.preventDefault();
+            this.paste();
+            return;
+        }
+
         // Ctrl+N: New
         if (ctrl && e.key === 'n') {
             e.preventDefault();
@@ -217,7 +234,9 @@
             '7': 'trader',
             '8': 'register',
             '9': 'endCondition',
-            '0': 'chart'
+            '0': 'chart',
+            'd': 'delay',
+            'q': 'queue'
         };
 
         if (toolMap[e.key]) {
@@ -478,6 +497,74 @@
                 }
             }
         }
+    };
+
+    // ===== Copy/Paste =====
+
+    Editor.prototype.copy = function() {
+        // Multi-selection copy
+        if (this.selectedNodeIds.length > 0) {
+            var nodes = [];
+            var nodeIds = {};
+            for (var i = 0; i < this.selectedNodeIds.length; i++) {
+                var node = this.app.graph.getNode(this.selectedNodeIds[i]);
+                if (node) {
+                    nodes.push(node.toJSON());
+                    nodeIds[node.id] = true;
+                }
+            }
+
+            // Copy connections between selected nodes
+            var connections = [];
+            var allConns = this.app.graph.getAllConnections();
+            for (var j = 0; j < allConns.length; j++) {
+                var conn = allConns[j];
+                if (nodeIds[conn.sourceId] && nodeIds[conn.targetId]) {
+                    connections.push(conn.toJSON());
+                }
+            }
+
+            this._clipboard = { nodes: nodes, connections: connections };
+            this.app.setStatus(nodes.length + '個コピーしました');
+        }
+    };
+
+    Editor.prototype.paste = function() {
+        if (!this._clipboard || !this._clipboard.nodes.length) return;
+
+        var graph = this.app.graph;
+        var offsetX = 40, offsetY = 40;
+        var idMap = {}; // old ID -> new ID
+
+        // Paste nodes
+        for (var i = 0; i < this._clipboard.nodes.length; i++) {
+            var data = JSON.parse(JSON.stringify(this._clipboard.nodes[i]));
+            var oldId = data.id;
+            data.x += offsetX;
+            data.y += offsetY;
+            delete data.id;
+            var node = new M.Node(data.type, data.x, data.y, data.properties);
+            node.resources = data.properties.startValue || 0;
+            graph.addNode(node);
+            this.app.renderer.renderNode(node);
+            idMap[oldId] = node.id;
+        }
+
+        // Paste connections between pasted nodes
+        for (var j = 0; j < this._clipboard.connections.length; j++) {
+            var cData = JSON.parse(JSON.stringify(this._clipboard.connections[j]));
+            var newSrc = idMap[cData.source];
+            var newTgt = idMap[cData.target];
+            if (newSrc && newTgt) {
+                var conn = new M.Connection(cData.type, newSrc, newTgt, cData.properties);
+                graph.addConnection(conn);
+                this.app.renderer.renderConnection(conn);
+            }
+        }
+
+        this.app.updateStatus();
+        this.app.saveHistory();
+        this.app.setStatus(this._clipboard.nodes.length + '個ペーストしました');
     };
 
     // ===== Cancel =====
