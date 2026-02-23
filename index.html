@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machinations シミュレーター</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- ヘッダー -->
+        <header id="header">
+            <div class="header-left">
+                <h1>Machinations シミュレーター</h1>
+            </div>
+            <div class="header-center">
+                <button id="btn-new" title="新規ダイアグラム (Ctrl+N)">新規</button>
+                <button id="btn-save" title="保存 (Ctrl+S)">保存</button>
+                <button id="btn-load" title="読込">読込</button>
+                <input type="file" id="file-input" accept=".json" style="display:none">
+                <span class="separator"></span>
+                <button id="btn-run" title="実行 (Space)" class="sim-btn">&#9654; 実行</button>
+                <button id="btn-stop" title="停止 (Space)" class="sim-btn" disabled>&#9724; 停止</button>
+                <button id="btn-step" title="ステップ (S)" class="sim-btn">&#9197; ステップ</button>
+                <span class="separator"></span>
+                <label class="speed-label">速度:
+                    <input type="range" id="speed-slider" min="1" max="20" value="5" title="シミュレーション速度">
+                    <span id="speed-value">5</span>
+                </label>
+                <span class="separator"></span>
+                <button id="btn-undo" title="元に戻す (Ctrl+Z)">↩</button>
+                <button id="btn-redo" title="やり直し (Ctrl+Y)">↪</button>
+                <span class="separator"></span>
+                <div class="sample-dropdown">
+                    <button id="btn-samples">サンプル ▼</button>
+                    <div class="sample-menu" id="sample-menu">
+                        <button data-sample="economy">シンプル経済</button>
+                        <button data-sample="engine">ダイナミックエンジン</button>
+                        <button data-sample="monopoly">正のフィードバック</button>
+                    </div>
+                </div>
+                <span class="separator"></span>
+                <button id="btn-theme" title="テーマ切替">🌙</button>
+            </div>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <div id="main-content">
+            <!-- ツールバー -->
+            <aside id="toolbar">
+                <div class="tool-section">
+                    <h3>ツール</h3>
+                    <button class="tool-btn active" data-tool="select" title="選択ツール (1)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="currentColor"/></svg>
+                        <span>選択</span>
+                    </button>
+                </div>
+                <div class="tool-section">
+                    <h3>ノード</h3>
+                    <button class="tool-btn" data-tool="pool" title="プール (2)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                        <span>プール</span>
+                    </button>
+                    <button class="tool-btn" data-tool="source" title="ソース (3)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,2 22,22 2,22" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                        <span>ソース</span>
+                    </button>
+                    <button class="tool-btn" data-tool="drain" title="ドレイン (4)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,22 22,2 2,2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                        <span>ドレイン</span>
+                    </button>
+                    <button class="tool-btn" data-tool="converter" title="コンバーター (5)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="2,12 12,2 22,12 12,22" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(45 12 12)"/></svg>
+                        <span>コンバーター</span>
+                    </button>
+                    <button class="tool-btn" data-tool="gate" title="ゲート (6)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,2 22,12 12,22 2,12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                        <span>ゲート</span>
+                    </button>
+                    <button class="tool-btn" data-tool="trader" title="トレーダー (7)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,2 15,9 22,9 16,14 18,22 12,17 6,22 8,14 2,9 9,9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                        <span>トレーダー</span>
+                    </button>
+                    <button class="tool-btn" data-tool="register" title="レジスター (8)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="5" width="18" height="14" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                        <span>レジスター</span>
+                    </button>
+                    <button class="tool-btn" data-tool="endCondition" title="エンドコンディション (9)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+                        <span>エンド</span>
+                    </button>
+                </div>
+                <div class="tool-section">
+                    <h3>接続</h3>
+                    <button class="tool-btn" data-tool="resourceConnection" title="リソース接続 (R)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><line x1="2" y1="12" x2="18" y2="12" stroke="currentColor" stroke-width="2"/><polygon points="18,8 24,12 18,16" fill="currentColor"/></svg>
+                        <span>接続</span>
+                    </button>
+                    <button class="tool-btn" data-tool="stateConnection" title="状態接続 (T)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><line x1="2" y1="12" x2="18" y2="12" stroke="currentColor" stroke-width="2" stroke-dasharray="4,3"/><polygon points="18,8 24,12 18,16" fill="currentColor"/></svg>
+                        <span>状態接続</span>
+                    </button>
+                </div>
+                <div class="tool-section">
+                    <h3>操作</h3>
+                    <button class="tool-btn" data-tool="delete" title="削除 (Del)">
+                        <svg viewBox="0 0 24 24" width="20" height="20"><line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2"/><line x1="20" y1="4" x2="4" y2="20" stroke="currentColor" stroke-width="2"/></svg>
+                        <span>削除</span>
+                    </button>
+                </div>
+            </aside>
+
+            <!-- SVGキャンバス -->
+            <main id="canvas-container">
+                <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+                        </marker>
+                        <marker id="arrowhead-dark" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#ccc"/>
+                        </marker>
+                        <marker id="arrowhead-state" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+                        </marker>
+                        <marker id="arrowhead-state-dark" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                            <polygon points="0 0, 10 3.5, 0 7" fill="#999"/>
+                        </marker>
+                        <marker id="trigger-marker" markerWidth="12" markerHeight="12" refX="6" refY="6" orient="auto">
+                            <path d="M3,2 L6,10 L9,2" fill="none" stroke="#ff9800" stroke-width="2"/>
+                        </marker>
+                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="0.5" class="grid-line"/>
+                        </pattern>
+                    </defs>
+                    <rect id="grid-bg" width="100%" height="100%" fill="url(#grid)"/>
+                    <g id="canvas-group">
+                        <g id="connections-layer"></g>
+                        <g id="animations-layer"></g>
+                        <g id="nodes-layer"></g>
+                    </g>
+                    <g id="temp-connection" style="pointer-events:none"></g>
+                </svg>
+            </main>
+
+            <!-- プロパティパネル -->
+            <aside id="properties-panel">
+                <h3>プロパティ</h3>
+                <div id="properties-content">
+                    <p class="placeholder">要素を選択してください</p>
+                </div>
+            </aside>
+        </div>
+
+        <!-- ステータスバー -->
+        <footer id="statusbar">
+            <span id="status-step">ステップ: 0</span>
+            <span class="separator"></span>
+            <span id="status-nodes">ノード: 0</span>
+            <span class="separator"></span>
+            <span id="status-connections">接続: 0</span>
+            <span class="separator"></span>
+            <span id="status-resources">総リソース: 0</span>
+            <span class="separator"></span>
+            <span id="status-info">準備完了</span>
+        </footer>
+    </div>
+
+    <script src="js/graph.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/properties.js"></script>
+    <script src="js/toolbar.js"></script>
+    <script src="js/editor.js"></script>
+    <script src="js/io.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
