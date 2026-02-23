@@ -66,6 +66,14 @@
         var graph = this.graph;
         this.resourceFlows = [];
 
+        // 0. Reset currentRate to base rate for all connections
+        var allConns = graph.getAllConnections();
+        for (var i = 0; i < allConns.length; i++) {
+            if (allConns[i].type === 'resourceConnection') {
+                allConns[i].currentRate = allConns[i].properties.rate;
+            }
+        }
+
         // 1. Determine which nodes to activate
         this._activateNodes();
 
@@ -159,21 +167,38 @@
             if (conn.type !== 'stateConnection' || !conn.active) continue;
 
             var source = graph.getNode(conn.sourceId);
-            var target = graph.getNode(conn.targetId);
-            if (!source || !target) continue;
+            if (!source) continue;
+
+            // Target can be a node OR a resource connection
+            var targetNode = graph.getNode(conn.targetId);
+            var targetConn = !targetNode ? graph.getConnection(conn.targetId) : null;
+            if (!targetNode && !targetConn) continue;
 
             var stateType = conn.properties.stateType || 'labelModifier';
             var formula = conn.properties.formula || '';
+            var condition = conn.properties.condition || '';
+
+            // Evaluate condition: if condition exists and fails, skip
+            if (condition) {
+                var sourceValue = this._getNodeValue(source);
+                if (!this._evaluateCondition(condition, sourceValue)) continue;
+            }
 
             switch (stateType) {
                 case 'labelModifier':
-                    this._applyLabelModifier(conn, source, target, formula);
+                    if (targetConn) {
+                        // Direct connection targeting: modify that connection's rate
+                        var newRate = formula ? this._evaluateFormula(formula, source) : this._getNodeValue(source);
+                        targetConn.currentRate = Math.max(0, Math.round(newRate * 100) / 100);
+                    } else {
+                        this._applyLabelModifier(conn, source, targetNode, formula);
+                    }
                     break;
                 case 'nodeModifier':
-                    this._applyNodeModifier(conn, source, target, formula);
+                    if (targetNode) this._applyNodeModifier(conn, source, targetNode, formula);
                     break;
                 case 'activator':
-                    this._applyActivator(conn, source, target, formula);
+                    if (targetNode) this._applyActivator(conn, source, targetNode, formula);
                     break;
                 // triggers are handled later
             }
@@ -181,15 +206,22 @@
     };
 
     Engine.prototype._applyLabelModifier = function(conn, source, target, formula) {
-        // Modify the rate of outgoing resource connections from target
         var sourceValue = this._getNodeValue(source);
         var newRate = formula ? this._evaluateFormula(formula, source) : sourceValue;
+        newRate = Math.max(0, Math.round(newRate * 100) / 100);
 
-        // Find resource connections from target or any connection the state conn targets
-        // If target is a connection (we store target as node), modify that connection's rate
+        // Modify outgoing resource connections from target
         var outConns = this.graph.getOutgoingConnections(target.id, 'resourceConnection');
         for (var i = 0; i < outConns.length; i++) {
-            outConns[i].currentRate = Math.max(0, Math.round(newRate * 100) / 100);
+            outConns[i].currentRate = newRate;
+        }
+
+        // Also modify incoming resource connections for drains/pools (when they have no outgoing)
+        if (outConns.length === 0 || target.type === 'drain') {
+            var inConns = this.graph.getIncomingConnections(target.id, 'resourceConnection');
+            for (var i = 0; i < inConns.length; i++) {
+                inConns[i].currentRate = newRate;
+            }
         }
     };
 
@@ -199,9 +231,9 @@
 
         // Modify production/consumption rate of target node
         if (target.type === 'source') {
-            target.properties.production = Math.max(0, Math.round(newValue));
+            target.properties.production = Math.max(0, Math.round(newValue * 100) / 100);
         } else if (target.type === 'drain') {
-            target.properties.consumption = Math.max(0, Math.round(newValue));
+            target.properties.consumption = Math.max(0, Math.round(newValue * 100) / 100);
         }
     };
 

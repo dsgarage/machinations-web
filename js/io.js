@@ -51,12 +51,18 @@
     };
 
     IO.prototype._loadFromData = function(data) {
+        // Stop running simulation and reset state
+        this.app.engine.stop();
+        document.getElementById('btn-run').disabled = false;
+        document.getElementById('btn-stop').disabled = true;
+
         var graph = M.Graph.fromJSON(data);
         this.app.graph = graph;
         this.app.engine.graph = graph;
         this.app.renderer.graph = graph;
         this.app.renderer.renderAll();
         this.app.editor.clearSelection();
+        this.app.propertiesPanel.clear();
         this.app.updateStatus();
         this.app.history = new M.History();
         this.app.saveHistory();
@@ -390,7 +396,7 @@
                 },
                 {
                     id: 'c_state', type: 'stateConnection', source: 'n_pool', target: 'n_drain',
-                    properties: { stateType: 'labelModifier', formula: 'self * 0.2', condition: '', label: '保有量×0.2' }
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, self * 0.2)', condition: '', label: '保有量×0.2' }
                 }
             ]
         };
@@ -410,7 +416,7 @@
                 },
                 {
                     id: 'n_drain', type: 'drain', x: 600, y: 200,
-                    properties: { name: '消耗', activationMode: 'automatic', consumption: 1 }
+                    properties: { name: '戦闘損失', activationMode: 'automatic', consumption: 1 }
                 },
                 {
                     id: 'n_drain2', type: 'drain', x: 380, y: 370,
@@ -431,8 +437,8 @@
                     properties: { rate: 1, label: '' }
                 },
                 {
-                    id: 'c_state', type: 'stateConnection', source: 'n_pool', target: 'c3',
-                    properties: { stateType: 'labelModifier', formula: 'self * 0.1', condition: '', label: '保有量の10%' }
+                    id: 'c_state', type: 'stateConnection', source: 'n_pool', target: 'n_drain2',
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, Math.round(self * 0.1))', condition: '', label: '保有量の10%' }
                 }
             ]
         };
@@ -452,11 +458,7 @@
                 },
                 {
                     id: 'n_drain', type: 'drain', x: 600, y: 200,
-                    properties: { name: '消費', activationMode: 'automatic', consumption: 3 }
-                },
-                {
-                    id: 'n_reg', type: 'register', x: 380, y: 80,
-                    properties: { name: '調整量', value: 0, formula: '' }
+                    properties: { name: '消費', activationMode: 'automatic', consumption: 1 }
                 }
             ],
             connections: [
@@ -466,15 +468,15 @@
                 },
                 {
                     id: 'c2', type: 'resourceConnection', source: 'n_pool', target: 'n_drain',
-                    properties: { rate: 3, label: '' }
+                    properties: { rate: 1, label: '' }
                 },
                 {
                     id: 'c_state1', type: 'stateConnection', source: 'n_pool', target: 'n_src',
-                    properties: { stateType: 'labelModifier', formula: '-self * 0.3', condition: '>10', label: '多いほど抑制' }
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, 5 - self * 0.2)', condition: '', label: '多いほど生産減' }
                 },
                 {
                     id: 'c_state2', type: 'stateConnection', source: 'n_pool', target: 'n_drain',
-                    properties: { stateType: 'labelModifier', formula: 'self * 0.2', condition: '>10', label: '多いほど消費増' }
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, self * 0.3)', condition: '', label: '多いほど消費増' }
                 }
             ]
         };
@@ -530,11 +532,7 @@
                 },
                 {
                     id: 'c_state1', type: 'stateConnection', source: 'n_territory', target: 'n_srcP1',
-                    properties: { stateType: 'labelModifier', formula: 'self * 0.2', condition: '', label: '領土→徴兵' }
-                },
-                {
-                    id: 'c_state2', type: 'stateConnection', source: 'n_armyP1', target: 'n_territory',
-                    properties: { stateType: 'nodeModifier', formula: 'self + 1', condition: '>15', label: '勝利で領土拡大' }
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, Math.round(self / 5))', condition: '', label: '領土→徴兵力' }
                 }
             ]
         };
@@ -623,11 +621,11 @@
                 // Feedback: more army → more mine production
                 {
                     id: 'c_fb1', type: 'stateConnection', source: 'n_army1', target: 'n_mine1',
-                    properties: { stateType: 'labelModifier', formula: 'self * 0.5', condition: '', label: '軍事力→経済' }
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, Math.round(self * 0.5))', condition: '', label: '軍事力→経済' }
                 },
                 {
                     id: 'c_fb2', type: 'stateConnection', source: 'n_army2', target: 'n_mine2',
-                    properties: { stateType: 'labelModifier', formula: 'self * 0.5', condition: '', label: '軍事力→経済' }
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, Math.round(self * 0.5))', condition: '', label: '軍事力→経済' }
                 }
             ]
         };
