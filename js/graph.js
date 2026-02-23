@@ -109,6 +109,26 @@ window.Machinations = window.Machinations || {};
                 maxDataPoints: 100,
                 activationMode: 'passive'
             }
+        },
+        delay: {
+            name: 'ディレイ',
+            shape: 'delayRect',
+            fill: '#e0f7fa',
+            stroke: '#00838f',
+            defaults: {
+                delay: 3,
+                activationMode: 'passive'
+            }
+        },
+        queue: {
+            name: 'キュー',
+            shape: 'queueRect',
+            fill: '#fce4ec',
+            stroke: '#c62828',
+            defaults: {
+                capacity: -1,
+                activationMode: 'automatic'
+            }
         }
     };
 
@@ -151,6 +171,7 @@ window.Machinations = window.Machinations || {};
     var PULL_MODES = {
         pull: { name: 'プル', symbol: '↓' },
         push: { name: 'プッシュ', symbol: '↑' },
+        pushAll: { name: 'プッシュAll', symbol: '↑&' },
         any: { name: 'いずれか', symbol: '↕' }
     };
 
@@ -192,6 +213,16 @@ window.Machinations = window.Machinations || {};
         // Chart node data
         if (this.type === 'chart') {
             this.chartData = {}; // { "NodeName": [values...] }
+        }
+
+        // Delay node queue
+        if (this.type === 'delay') {
+            this._delayQueue = []; // { step: N, amount: N }
+        }
+
+        // Queue node FIFO queue
+        if (this.type === 'queue') {
+            this._fifoQueue = [];
         }
     }
 
@@ -292,6 +323,7 @@ window.Machinations = window.Machinations || {};
         this.nodes = {};
         this.connections = {};
         this.stepCount = 0;
+        this.variables = {};
     }
 
     Graph.prototype.addNode = function(node) {
@@ -388,6 +420,12 @@ window.Machinations = window.Machinations || {};
             if (node.type === 'chart') {
                 node.chartData = {};
             }
+            if (node.type === 'delay') {
+                node._delayQueue = [];
+            }
+            if (node.type === 'queue') {
+                node._fifoQueue = [];
+            }
         }
         for (var cid in this.connections) {
             var conn = this.connections[cid];
@@ -409,7 +447,8 @@ window.Machinations = window.Machinations || {};
         return {
             name: 'machinations-diagram',
             nodes: nodesArr,
-            connections: connsArr
+            connections: connsArr,
+            variables: JSON.parse(JSON.stringify(this.variables))
         };
     };
 
@@ -426,6 +465,9 @@ window.Machinations = window.Machinations || {};
                 var conn = Connection.fromJSON(cd);
                 graph.connections[conn.id] = conn;
             });
+        }
+        if (data.variables) {
+            graph.variables = JSON.parse(JSON.stringify(data.variables));
         }
         return graph;
     };

@@ -95,16 +95,25 @@
         // 7. Process drains
         this._processDrains();
 
-        // 8. Update chart nodes
+        // 8. Process delays
+        this._processDelays();
+
+        // 9. Process queues
+        this._processQueues();
+
+        // 10. Process traders
+        this._processTraders();
+
+        // 11. Update chart nodes
         this._updateCharts();
 
-        // 9. Evaluate end conditions
+        // 12. Evaluate end conditions
         var ended = this._evaluateEndConditions();
 
-        // 10. Evaluate triggers
+        // 13. Evaluate triggers
         this._evaluateTriggers();
 
-        // 11. Update step counter
+        // 14. Update step counter
         graph.stepCount++;
 
         // Reset activation flags
@@ -151,12 +160,25 @@
         var graph = this.graph;
         var connections = graph.getAllConnections();
 
-        // First pass: update registers
+        // First pass: update registers (with named inputs)
         var nodes = graph.getAllNodes();
         for (var i = 0; i < nodes.length; i++) {
             var node = nodes[i];
             if (node.type === 'register' && node.properties.formula) {
-                node.properties.value = this._evaluateFormula(node.properties.formula, node);
+                // Collect named inputs from incoming state connections
+                var inStateConns = graph.getIncomingConnections(node.id, 'stateConnection');
+                var namedInputs = {};
+                for (var k = 0; k < inStateConns.length; k++) {
+                    var inConn = inStateConns[k];
+                    var inputLabel = inConn.properties.label || '';
+                    if (inputLabel) {
+                        var inputSource = graph.getNode(inConn.sourceId);
+                        if (inputSource) {
+                            namedInputs[inputLabel] = this._getNodeValue(inputSource);
+                        }
+                    }
+                }
+                node.properties.value = this._evaluateFormula(node.properties.formula, node, namedInputs);
                 node.resources = node.properties.value;
             }
         }
@@ -207,20 +229,34 @@
 
     Engine.prototype._applyLabelModifier = function(conn, source, target, formula) {
         var sourceValue = this._getNodeValue(source);
-        var newRate = formula ? this._evaluateFormula(formula, source) : sourceValue;
-        newRate = Math.max(0, Math.round(newRate * 100) / 100);
 
-        // Modify outgoing resource connections from target
-        var outConns = this.graph.getOutgoingConnections(target.id, 'resourceConnection');
-        for (var i = 0; i < outConns.length; i++) {
-            outConns[i].currentRate = newRate;
+        // Collect target connections to modify
+        var targetConns = this.graph.getOutgoingConnections(target.id, 'resourceConnection');
+        if (targetConns.length === 0 || target.type === 'drain') {
+            targetConns = targetConns.concat(this.graph.getIncomingConnections(target.id, 'resourceConnection'));
         }
 
-        // Also modify incoming resource connections for drains/pools (when they have no outgoing)
-        if (outConns.length === 0 || target.type === 'drain') {
-            var inConns = this.graph.getIncomingConnections(target.id, 'resourceConnection');
-            for (var i = 0; i < inConns.length; i++) {
-                inConns[i].currentRate = newRate;
+        // Check for +N, -N, +N%, -N% modifier pattern
+        var modPattern = formula ? formula.match(/^([+-])(\d+\.?\d*)(%)?\s*$/) : null;
+        if (modPattern) {
+            var sign = modPattern[1] === '+' ? 1 : -1;
+            var amount = parseFloat(modPattern[2]);
+            var isPercent = !!modPattern[3];
+            for (var i = 0; i < targetConns.length; i++) {
+                var baseRate = targetConns[i].properties.rate || 1;
+                var newRate;
+                if (isPercent) {
+                    newRate = baseRate + sign * (baseRate * amount / 100);
+                } else {
+                    newRate = baseRate + sign * amount;
+                }
+                targetConns[i].currentRate = Math.max(0, Math.round(newRate * 100) / 100);
+            }
+        } else {
+            var newRate = formula ? this._evaluateFormula(formula, source) : sourceValue;
+            newRate = Math.max(0, Math.round(newRate * 100) / 100);
+            for (var i = 0; i < targetConns.length; i++) {
+                targetConns[i].currentRate = newRate;
             }
         }
     };
@@ -309,6 +345,22 @@
             return { value: 1, allOrNothing: allOrNothing, interval: interval };
         }
 
+        // "all" keyword: transfer all resources from the source node
+        if (str.toLowerCase() === 'all') {
+            var allAmount = node ? (node.resources || 0) : 9999;
+            return { value: allAmount, allOrNothing: false, interval: interval };
+        }
+
+        // Percentage: 25% = 25% chance of 1, 250% = 2 guaranteed + 50% chance of 1 more
+        var percentMatch = str.match(/^(\d+)%$/);
+        if (percentMatch) {
+            var pct = parseInt(percentMatch[1]);
+            var guaranteed = Math.floor(pct / 100);
+            var remainder = pct % 100;
+            var extra = (Math.random() * 100 < remainder) ? 1 : 0;
+            return { value: guaranteed + extra, allOrNothing: allOrNothing, interval: interval };
+        }
+
         // Dice notation and formulas
         str = this._parseDice(str);
 
@@ -348,7 +400,7 @@
         return false;
     };
 
-    Engine.prototype._evaluateFormula = function(formula, contextNode) {
+    Engine.prototype._evaluateFormula = function(formula, contextNode, namedInputs) {
         try {
             // Replace dice notation first
             var expr = this._parseDice(formula);
@@ -368,6 +420,19 @@
             // Replace 'self' with context node value
             if (contextNode) {
                 expr = expr.replace(/\bself\b/g, String(contextNode.resources || 0));
+            }
+
+            // Replace named inputs (from Register named inputs)
+            if (namedInputs) {
+                for (var varName in namedInputs) {
+                    expr = expr.replace(new RegExp('\\b' + varName + '\\b', 'g'), String(namedInputs[varName]));
+                }
+            }
+
+            // Replace custom variables
+            var vars = this.graph.variables || {};
+            for (var vName in vars) {
+                expr = expr.replace(new RegExp('\\b' + vName + '\\b', 'g'), String(vars[vName]));
             }
 
             // Safe eval with limited scope
@@ -419,6 +484,26 @@
             if (pullMode === 'pull' && target.activated) {
                 this._transferResources(source, target, conn, rateParsed);
             } else if (pullMode === 'push' && source.activated) {
+                this._transferResources(source, target, conn, rateParsed);
+            } else if (pullMode === 'pushAll' && source.activated) {
+                // Push All: only push if ALL output targets can accept
+                var allOutConns = graph.getOutgoingConnections(source.id, 'resourceConnection');
+                var allCanAccept = true;
+                for (var a = 0; a < allOutConns.length; a++) {
+                    var outTarget = graph.getNode(allOutConns[a].targetId);
+                    var outRate = this._parseRate(
+                        allOutConns[a].currentRate !== undefined ? allOutConns[a].currentRate : (allOutConns[a].properties.rate || 1),
+                        source
+                    );
+                    if (!outTarget || !outTarget.canAcceptResource(outRate.value)) {
+                        allCanAccept = false;
+                        break;
+                    }
+                }
+                if (allCanAccept) {
+                    this._transferResources(source, target, conn, rateParsed);
+                }
+            } else if (pullMode === 'any' && (source.activated || target.activated)) {
                 this._transferResources(source, target, conn, rateParsed);
             } else if (source.activated || target.activated) {
                 this._transferResources(source, target, conn, rateParsed);
@@ -638,7 +723,70 @@
 
             var gateType = node.properties.gateType || 'probabilistic';
 
-            if (gateType === 'probabilistic') {
+            if (gateType === 'trigger') {
+                // Trigger gate: no resource input needed
+                // Activate targets via outgoing state connections
+                var outStateConns = graph.getOutgoingConnections(node.id, 'stateConnection');
+                for (var k = 0; k < outStateConns.length; k++) {
+                    var stTarget = graph.getNode(outStateConns[k].targetId);
+                    if (stTarget) {
+                        stTarget.activated = true;
+                    }
+                }
+                // Also send resources to regular output connections
+                for (var k = 0; k < outConns.length; k++) {
+                    var outConn = outConns[k];
+                    var target = graph.getNode(outConn.targetId);
+                    if (target && target.canAcceptResource(totalInput)) {
+                        target.addResources(totalInput);
+                        this.resourceFlows.push({
+                            connectionId: outConn.id,
+                            amount: totalInput,
+                            sourceId: node.id,
+                            targetId: target.id
+                        });
+                        break; // send to first available
+                    }
+                }
+            } else if (gateType === 'conditional') {
+                // Conditional gate: roll dice (default D6), route based on label conditions
+                var diceSides = node.properties.diceSides || 6;
+                var roll = Math.floor(Math.random() * diceSides) + 1;
+                var matched = false;
+
+                for (var k = 0; k < outConns.length; k++) {
+                    var outConn = outConns[k];
+                    var label = outConn.properties.label || '';
+                    if (label && this._evaluateCondition(label, roll)) {
+                        var target = graph.getNode(outConn.targetId);
+                        if (target && target.canAcceptResource(totalInput)) {
+                            target.addResources(totalInput);
+                            this.resourceFlows.push({
+                                connectionId: outConn.id,
+                                amount: totalInput,
+                                sourceId: node.id,
+                                targetId: target.id
+                            });
+                            matched = true;
+                            break;
+                        }
+                    }
+                }
+                // If no condition matched, send to last output as fallback
+                if (!matched && outConns.length > 0) {
+                    var fallbackConn = outConns[outConns.length - 1];
+                    var fallbackTarget = graph.getNode(fallbackConn.targetId);
+                    if (fallbackTarget && fallbackTarget.canAcceptResource(totalInput)) {
+                        fallbackTarget.addResources(totalInput);
+                        this.resourceFlows.push({
+                            connectionId: fallbackConn.id,
+                            amount: totalInput,
+                            sourceId: node.id,
+                            targetId: fallbackTarget.id
+                        });
+                    }
+                }
+            } else if (gateType === 'probabilistic') {
                 // Random distribution
                 var rand = Math.random();
                 var cumulative = 0;
@@ -680,6 +828,274 @@
                             targetId: target.id
                         });
                     }
+                }
+            }
+        }
+    };
+
+    // ===== Delay Node Processing =====
+    Engine.prototype._processDelays = function() {
+        var graph = this.graph;
+        var nodes = graph.getAllNodes();
+
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            if (node.type !== 'delay') continue;
+
+            var delaySteps = node.properties.delay || 3;
+            var inConns = graph.getIncomingConnections(node.id, 'resourceConnection');
+            var outConns = graph.getOutgoingConnections(node.id, 'resourceConnection');
+
+            // Collect incoming resources and enqueue them
+            for (var j = 0; j < inConns.length; j++) {
+                var conn = inConns[j];
+                if (!conn.active) continue;
+                var source = graph.getNode(conn.sourceId);
+                if (!source) continue;
+
+                var rateParsed = this._parseRate(
+                    conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1),
+                    source
+                );
+                var amount = rateParsed.value;
+                if (amount <= 0) continue;
+
+                // Only transfer if source is activated or this is a push
+                if (!source.activated && !node.activated) continue;
+
+                var removed = source.removeResources(amount);
+                if (removed > 0) {
+                    node._delayQueue.push({ step: graph.stepCount, amount: removed });
+                    this.resourceFlows.push({
+                        connectionId: conn.id,
+                        amount: removed,
+                        sourceId: source.id,
+                        targetId: node.id
+                    });
+                }
+            }
+
+            // Release resources whose delay has elapsed
+            var released = [];
+            var remaining = [];
+            for (var q = 0; q < node._delayQueue.length; q++) {
+                var entry = node._delayQueue[q];
+                if (entry.step + delaySteps <= graph.stepCount) {
+                    released.push(entry);
+                } else {
+                    remaining.push(entry);
+                }
+            }
+            node._delayQueue = remaining;
+
+            // Push released resources to output connections
+            for (var r = 0; r < released.length; r++) {
+                var releasedAmount = released[r].amount;
+                for (var k = 0; k < outConns.length; k++) {
+                    var outConn = outConns[k];
+                    if (!outConn.active) continue;
+                    var target = graph.getNode(outConn.targetId);
+                    if (!target) continue;
+                    if (target.canAcceptResource(releasedAmount)) {
+                        target.addResources(releasedAmount);
+                        this.resourceFlows.push({
+                            connectionId: outConn.id,
+                            amount: releasedAmount,
+                            sourceId: node.id,
+                            targetId: target.id
+                        });
+                    }
+                }
+            }
+        }
+    };
+
+    // ===== Queue Node Processing =====
+    Engine.prototype._processQueues = function() {
+        var graph = this.graph;
+        var nodes = graph.getAllNodes();
+
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            if (node.type !== 'queue') continue;
+
+            var inConns = graph.getIncomingConnections(node.id, 'resourceConnection');
+            var outConns = graph.getOutgoingConnections(node.id, 'resourceConnection');
+            var capacity = node.properties.capacity || -1;
+
+            // Collect incoming resources (enqueue)
+            for (var j = 0; j < inConns.length; j++) {
+                var conn = inConns[j];
+                if (!conn.active) continue;
+                var source = graph.getNode(conn.sourceId);
+                if (!source) continue;
+
+                var rateParsed = this._parseRate(
+                    conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1),
+                    source
+                );
+                var amount = rateParsed.value;
+                if (amount <= 0) continue;
+
+                if (!source.activated && !node.activated) continue;
+
+                // Check capacity
+                if (capacity !== -1 && node._fifoQueue.length >= capacity) continue;
+
+                var removed = source.removeResources(amount);
+                if (removed > 0) {
+                    // Enqueue individual units for FIFO
+                    for (var u = 0; u < removed; u++) {
+                        if (capacity === -1 || node._fifoQueue.length < capacity) {
+                            node._fifoQueue.push(1);
+                        }
+                    }
+                    node.resources = node._fifoQueue.length;
+                    this.resourceFlows.push({
+                        connectionId: conn.id,
+                        amount: removed,
+                        sourceId: source.id,
+                        targetId: node.id
+                    });
+                }
+            }
+
+            // Release: FIFO, 1 unit per step to output
+            if (node.activated && node._fifoQueue.length > 0 && outConns.length > 0) {
+                var released = node._fifoQueue.shift();
+                node.resources = node._fifoQueue.length;
+
+                // Send to first available output
+                for (var k = 0; k < outConns.length; k++) {
+                    var outConn = outConns[k];
+                    if (!outConn.active) continue;
+                    var target = graph.getNode(outConn.targetId);
+                    if (!target) continue;
+                    if (target.canAcceptResource(released)) {
+                        target.addResources(released);
+                        this.resourceFlows.push({
+                            connectionId: outConn.id,
+                            amount: released,
+                            sourceId: node.id,
+                            targetId: target.id
+                        });
+                        break;
+                    }
+                }
+            }
+        }
+    };
+
+    // ===== Trader Node Processing =====
+    Engine.prototype._processTraders = function() {
+        var graph = this.graph;
+        var nodes = graph.getAllNodes();
+
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            if (node.type !== 'trader') continue;
+            if (!node.activated) continue;
+
+            var inConns = graph.getIncomingConnections(node.id, 'resourceConnection');
+            var outConns = graph.getOutgoingConnections(node.id, 'resourceConnection');
+            if (inConns.length === 0 || outConns.length === 0) continue;
+
+            var exchangeRate = node.properties.exchangeRate || 1;
+
+            // Input side (left): resources A coming in
+            // Output side (right): resources B going out
+            // Bidirectional: also expect B to come in (via input) and A to go out (via output)
+            // Simplified model: check if input sources have enough A, and output targets can provide B
+
+            // Collect available input (resource A)
+            var totalInputA = 0;
+            for (var j = 0; j < inConns.length; j++) {
+                var conn = inConns[j];
+                var source = graph.getNode(conn.sourceId);
+                if (!source) continue;
+                var rateA = this._parseRate(
+                    conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1),
+                    source
+                ).value;
+                totalInputA += Math.min(source.type === 'source' ? rateA : source.resources, rateA);
+            }
+
+            // Required B = totalInputA * exchangeRate
+            var requiredB = totalInputA * exchangeRate;
+
+            // Check if output targets can provide B (reverse flow)
+            var totalAvailB = 0;
+            for (var k = 0; k < outConns.length; k++) {
+                var outConn = outConns[k];
+                var target = graph.getNode(outConn.targetId);
+                if (!target) continue;
+                totalAvailB += target.resources || 0;
+            }
+
+            // Exchange only if both sides have enough
+            if (totalInputA <= 0 || totalAvailB < requiredB) continue;
+
+            // Execute exchange: consume A from inputs
+            var remainingA = totalInputA;
+            for (var j = 0; j < inConns.length && remainingA > 0; j++) {
+                var conn = inConns[j];
+                var source = graph.getNode(conn.sourceId);
+                if (!source) continue;
+                var rateA = this._parseRate(
+                    conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1),
+                    source
+                ).value;
+                var removed = source.removeResources(Math.min(rateA, remainingA));
+                remainingA -= removed;
+                if (removed > 0) {
+                    this.resourceFlows.push({
+                        connectionId: conn.id,
+                        amount: removed,
+                        sourceId: source.id,
+                        targetId: node.id
+                    });
+                }
+            }
+
+            // Consume B from output targets and send A to them
+            var remainingB = requiredB;
+            var aToDistribute = totalInputA;
+            for (var k = 0; k < outConns.length; k++) {
+                var outConn = outConns[k];
+                var target = graph.getNode(outConn.targetId);
+                if (!target) continue;
+
+                // Take B from target (reverse)
+                var takeB = Math.min(target.resources, remainingB);
+                if (takeB > 0) {
+                    target.removeResources(takeB);
+                    remainingB -= takeB;
+                }
+
+                // Give A to target (forward via exchangeRate)
+                var giveA = Math.min(aToDistribute, takeB / exchangeRate);
+                if (giveA > 0 && target.canAcceptResource(giveA)) {
+                    target.addResources(giveA);
+                    aToDistribute -= giveA;
+                    this.resourceFlows.push({
+                        connectionId: outConn.id,
+                        amount: giveA,
+                        sourceId: node.id,
+                        targetId: target.id
+                    });
+                }
+            }
+
+            // Send B back to input sources
+            var bToDistribute = requiredB;
+            for (var j = 0; j < inConns.length && bToDistribute > 0; j++) {
+                var conn = inConns[j];
+                var source = graph.getNode(conn.sourceId);
+                if (!source || source.type === 'source') continue;
+                var give = Math.min(bToDistribute, exchangeRate);
+                if (source.canAcceptResource(give)) {
+                    source.addResources(give);
+                    bToDistribute -= give;
                 }
             }
         }
@@ -733,6 +1149,45 @@
             }
         }
         return false;
+    };
+
+    // ===== Quick Run (suppress animation) =====
+    Engine.prototype.quickRun = function(steps) {
+        var savedOnStep = this.onStep;
+        this.onStep = null; // suppress animation
+        for (var i = 0; i < steps; i++) {
+            this.step();
+            if (!this.running && this.onEnd) break;
+        }
+        this.onStep = savedOnStep;
+    };
+
+    // ===== Multiple Run / Monte Carlo =====
+    Engine.prototype.multipleRun = function(runs, stepsPerRun) {
+        var results = {}; // { nodeId: { name, values: [] } }
+        var originalData = this.graph.toJSON();
+
+        for (var r = 0; r < runs; r++) {
+            // Reset to original state
+            var graph = M.Graph.fromJSON(originalData);
+            this.graph = graph;
+            // Run
+            for (var s = 0; s < stepsPerRun; s++) {
+                this.step();
+            }
+            // Collect pool values
+            var nodes = graph.getAllNodes();
+            for (var n = 0; n < nodes.length; n++) {
+                var node = nodes[n];
+                if (node.type === 'pool') {
+                    if (!results[node.id]) results[node.id] = { name: node.properties.name, values: [] };
+                    results[node.id].values.push(node.resources);
+                }
+            }
+        }
+        // Restore original
+        this.graph = M.Graph.fromJSON(originalData);
+        return results;
     };
 
     M.Engine = Engine;
