@@ -680,6 +680,9 @@
     // ===== Animation =====
 
     Renderer.prototype.animateResourceFlow = function(flow) {
+        // Limit concurrent animation tokens to avoid DOM thrashing
+        if (this._animationTokens.length >= 20) return;
+
         var conn = this.graph.getConnection(flow.connectionId);
         if (!conn) return;
 
@@ -696,6 +699,7 @@
             'cy': points.sy
         });
         this.animationsLayer.appendChild(token);
+        this._animationTokens.push(token);
 
         // Animate along the path
         var duration = 300;
@@ -717,6 +721,8 @@
                 if (token.parentNode) {
                     token.parentNode.removeChild(token);
                 }
+                var idx = self._animationTokens.indexOf(token);
+                if (idx >= 0) self._animationTokens.splice(idx, 1);
             }
         }
 
@@ -724,15 +730,15 @@
     };
 
     Renderer.prototype.pulseNode = function(nodeId) {
+        // Lightweight pulse: no forced reflow
         var el = this._nodeElements[nodeId];
         if (!el) return;
-        el.classList.remove('node-pulse');
-        // Trigger reflow
-        void el.offsetWidth;
-        el.classList.add('node-pulse');
+        var shape = el.querySelector('.node-shape');
+        if (!shape) return;
+        shape.style.opacity = '0.7';
         setTimeout(function() {
-            el.classList.remove('node-pulse');
-        }, 300);
+            shape.style.opacity = '';
+        }, 150);
     };
 
     // ===== Selection Rectangle =====
