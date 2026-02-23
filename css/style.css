@@ -694,6 +694,140 @@ body {
     height: 100%;
 }
 
+/* ===== Chart Data Panel ===== */
+#chart-panel {
+    flex-shrink: 0;
+    height: 200px;
+    min-height: 80px;
+    max-height: 50vh;
+    background: var(--bg-secondary);
+    border-top: 2px solid var(--accent);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+#chart-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--bg-tertiary);
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+    cursor: ns-resize;
+}
+
+#chart-panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#chart-panel-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0 4px;
+    line-height: 1;
+}
+
+#chart-panel-close:hover {
+    color: var(--danger);
+}
+
+#chart-panel-body {
+    flex: 1;
+    overflow: auto;
+    padding: 0;
+}
+
+#chart-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: 'SF Mono', 'Menlo', 'Monaco', monospace;
+}
+
+#chart-table th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-tertiary);
+    padding: 4px 10px;
+    text-align: right;
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+}
+
+#chart-table th:first-child {
+    text-align: center;
+    width: 60px;
+}
+
+#chart-table td {
+    padding: 3px 10px;
+    text-align: right;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary);
+}
+
+#chart-table td:first-child {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+#chart-table tbody tr:hover {
+    background: var(--bg-tertiary);
+}
+
+/* ===== Feedback Button ===== */
+#feedback-btn {
+    position: fixed;
+    bottom: 36px;
+    right: 12px;
+    z-index: 500;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    transition: background 0.2s, transform 0.15s;
+}
+
+#feedback-btn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+}
+
+.feedback-submit-btn {
+    width: 100%;
+    padding: 10px;
+    margin-top: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.feedback-submit-btn:hover {
+    background: var(--accent-hover);
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 1024px) {
     #toolbar {

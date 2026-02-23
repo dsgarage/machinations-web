@@ -22,10 +22,14 @@
         this._isDark = false;
         this._autoSaveInterval = null;
 
+        this._chartPanelVisible = false;
+
         this._initHeaderButtons();
         this._initEngine();
         this._initAutoSave();
         this._initTheme();
+        this._initChartPanel();
+        this._initFeedback();
 
         // Try auto-load, otherwise show empty
         if (!this.io.autoLoad()) {
@@ -74,30 +78,6 @@
         document.getElementById('btn-step').addEventListener('click', function() {
             self.stepSimulation();
         });
-
-        // Reset
-        var btnReset = document.getElementById('btn-reset');
-        if (btnReset) {
-            btnReset.addEventListener('click', function() {
-                self.resetSimulation();
-            });
-        }
-
-        // Quick Run (placeholder)
-        var btnQuickrun = document.getElementById('btn-quickrun');
-        if (btnQuickrun) {
-            btnQuickrun.addEventListener('click', function() {
-                self.setStatus('高速実行は今後のバージョンで実装予定');
-            });
-        }
-
-        // Multi Run (placeholder)
-        var btnMultirun = document.getElementById('btn-multirun');
-        if (btnMultirun) {
-            btnMultirun.addEventListener('click', function() {
-                self.setStatus('統計実行は今後のバージョンで実装予定');
-            });
-        }
 
         // Speed
         var speedSlider = document.getElementById('speed-slider');
@@ -210,6 +190,9 @@
 
                 // Refresh properties panel
                 self.propertiesPanel.refresh();
+
+                // Update chart data table
+                self.updateChartPanel();
             });
         };
 
@@ -270,6 +253,8 @@
         this.engine.reset();
         this.renderer.renderAll();
         this.updateStatus();
+        this._chartPanelVisible = false;
+        document.getElementById('chart-panel').style.display = 'none';
         this.setStatus('シミュレーションリセット');
     };
 
@@ -359,6 +344,180 @@
 
     App.prototype.setStatus = function(msg) {
         document.getElementById('status-info').textContent = msg;
+    };
+
+    // ===== Chart Data Panel =====
+
+    App.prototype._initChartPanel = function() {
+        var self = this;
+        var panel = document.getElementById('chart-panel');
+        var closeBtn = document.getElementById('chart-panel-close');
+        var header = document.getElementById('chart-panel-header');
+
+        closeBtn.addEventListener('click', function() {
+            self._chartPanelVisible = false;
+            panel.style.display = 'none';
+        });
+
+        // ドラッグでリサイズ
+        var resizing = false;
+        var startY = 0;
+        var startH = 0;
+        header.addEventListener('mousedown', function(e) {
+            if (e.target === closeBtn) return;
+            resizing = true;
+            startY = e.clientY;
+            startH = panel.offsetHeight;
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', function(e) {
+            if (!resizing) return;
+            var newH = startH - (e.clientY - startY);
+            if (newH < 80) newH = 80;
+            if (newH > window.innerHeight * 0.6) newH = window.innerHeight * 0.6;
+            panel.style.height = newH + 'px';
+        });
+        document.addEventListener('mouseup', function() {
+            resizing = false;
+        });
+    };
+
+    App.prototype.showChartPanel = function() {
+        if (this._chartPanelVisible) return;
+        this._chartPanelVisible = true;
+        document.getElementById('chart-panel').style.display = 'flex';
+    };
+
+    App.prototype.updateChartPanel = function() {
+        // チャートノードを収集
+        var chartNodes = [];
+        var allNodes = this.graph.getAllNodes();
+        for (var i = 0; i < allNodes.length; i++) {
+            if (allNodes[i].type === 'chart' && allNodes[i].chartData) {
+                chartNodes.push(allNodes[i]);
+            }
+        }
+        if (chartNodes.length === 0) return;
+
+        // チャートノードがあればパネルを自動表示
+        this.showChartPanel();
+
+        // 全シリーズを統合: { seriesName: [values] }
+        var allSeries = {};
+        var seriesColors = {};
+        var colors = ['#1976d2', '#e53935', '#43a047', '#ff9800', '#9c27b0', '#00bcd4'];
+        var colorIdx = 0;
+        var maxLen = 0;
+
+        for (var c = 0; c < chartNodes.length; c++) {
+            var cd = chartNodes[c].chartData;
+            for (var name in cd) {
+                if (!allSeries[name]) {
+                    allSeries[name] = cd[name];
+                    seriesColors[name] = colors[colorIdx % colors.length];
+                    colorIdx++;
+                } else {
+                    allSeries[name] = cd[name];
+                }
+                if (cd[name].length > maxLen) maxLen = cd[name].length;
+            }
+        }
+
+        // ヘッダー構築
+        var thead = document.getElementById('chart-thead');
+        var headerHtml = '<tr><th>Step</th>';
+        var seriesNames = [];
+        for (var name in allSeries) {
+            seriesNames.push(name);
+            var c = seriesColors[name] || '#666';
+            headerHtml += '<th style="color:' + c + '">' + name + '</th>';
+        }
+        headerHtml += '</tr>';
+        thead.innerHTML = headerHtml;
+
+        // ボディ構築
+        var tbody = document.getElementById('chart-tbody');
+        var bodyHtml = '';
+        for (var step = 0; step < maxLen; step++) {
+            bodyHtml += '<tr><td>' + (step + 1) + '</td>';
+            for (var s = 0; s < seriesNames.length; s++) {
+                var data = allSeries[seriesNames[s]];
+                var val = step < data.length ? data[step] : '';
+                if (typeof val === 'number') val = Math.round(val * 100) / 100;
+                bodyHtml += '<td>' + val + '</td>';
+            }
+            bodyHtml += '</tr>';
+        }
+        tbody.innerHTML = bodyHtml;
+
+        // 最新行にスクロール
+        var panelBody = document.getElementById('chart-panel-body');
+        panelBody.scrollTop = panelBody.scrollHeight;
+    };
+
+    // ===== Feedback =====
+
+    App.prototype._initFeedback = function() {
+        var feedbackBtn = document.getElementById('feedback-btn');
+        var feedbackModal = document.getElementById('feedback-modal');
+        var feedbackClose = document.getElementById('feedback-close');
+        var feedbackSubmit = document.getElementById('feedback-submit');
+
+        feedbackBtn.addEventListener('click', function() {
+            feedbackModal.style.display = 'flex';
+        });
+
+        feedbackClose.addEventListener('click', function() {
+            feedbackModal.style.display = 'none';
+        });
+
+        feedbackModal.addEventListener('click', function(e) {
+            if (e.target === feedbackModal) feedbackModal.style.display = 'none';
+        });
+
+        var self = this;
+        feedbackSubmit.addEventListener('click', function() {
+            var category = document.getElementById('feedback-category').value;
+            var title = document.getElementById('feedback-title').value.trim();
+            var body = document.getElementById('feedback-body').value.trim();
+
+            if (!title) {
+                alert('タイトルを入力してください');
+                return;
+            }
+
+            // カテゴリ → ラベル/プレフィックス
+            var labelMap = {
+                enhancement: 'enhancement',
+                bug: 'bug',
+                improvement: 'improvement',
+                other: 'question'
+            };
+            var prefixMap = {
+                enhancement: '[新規実装]',
+                bug: '[バグ]',
+                improvement: '[改善要望]',
+                other: '[その他]'
+            };
+
+            var issueTitle = prefixMap[category] + ' ' + title;
+            var issueBody = body + '\n\n---\n_Machinations Web Simulator からのフィードバック_';
+            var label = labelMap[category];
+
+            var url = 'https://github.com/dsgarage/machinations-web/issues/new'
+                + '?title=' + encodeURIComponent(issueTitle)
+                + '&body=' + encodeURIComponent(issueBody)
+                + '&labels=' + encodeURIComponent(label);
+
+            window.open(url, '_blank');
+
+            // フォームリセット
+            document.getElementById('feedback-title').value = '';
+            document.getElementById('feedback-body').value = '';
+            feedbackModal.style.display = 'none';
+
+            self.setStatus('GitHub Issue ページを開きました');
+        });
     };
 
     // ===== Monte Carlo =====

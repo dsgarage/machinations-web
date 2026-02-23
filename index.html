@@ -171,6 +171,20 @@
             </aside>
         </div>
 
+        <!-- チャートデータパネル -->
+        <div id="chart-panel" style="display:none">
+            <div id="chart-panel-header">
+                <span id="chart-panel-title">チャートデータ</span>
+                <button id="chart-panel-close" title="閉じる">&times;</button>
+            </div>
+            <div id="chart-panel-body">
+                <table id="chart-table">
+                    <thead id="chart-thead"><tr></tr></thead>
+                    <tbody id="chart-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- ステータスバー -->
         <footer id="statusbar">
             <span id="status-step">ステップ: 0</span>
@@ -256,6 +270,39 @@
                         </button>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- フィードバックボタン -->
+    <button id="feedback-btn" title="フィードバック">&#128172; フィードバック</button>
+
+    <!-- フィードバックモーダル -->
+    <div id="feedback-modal" class="modal-overlay" style="display:none">
+        <div class="modal-content" style="width:480px">
+            <div class="modal-header">
+                <h2>フィードバック</h2>
+                <button class="modal-close-btn" id="feedback-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="prop-group">
+                    <label>カテゴリ</label>
+                    <select id="feedback-category">
+                        <option value="enhancement">新規実装</option>
+                        <option value="bug">バグ</option>
+                        <option value="improvement">改善要望</option>
+                        <option value="other">その他</option>
+                    </select>
+                </div>
+                <div class="prop-group">
+                    <label>タイトル</label>
+                    <input type="text" id="feedback-title" placeholder="概要を入力">
+                </div>
+                <div class="prop-group">
+                    <label>詳細</label>
+                    <textarea id="feedback-body" rows="5" placeholder="詳しい内容を記述してください"></textarea>
+                </div>
+                <button id="feedback-submit" class="feedback-submit-btn">GitHub Issue を作成</button>
             </div>
         </div>
     </div>
