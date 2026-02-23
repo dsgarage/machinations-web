@@ -486,6 +486,20 @@
                 return;
             }
 
+            // トークン取得（なければ入力を求める）
+            var token = localStorage.getItem('machinations_github_token');
+            if (!token) {
+                token = prompt(
+                    'GitHub Personal Access Token を入力してください\n\n'
+                    + '初回のみ必要です（ブラウザに保存されます）\n'
+                    + 'Fine-Grained PAT を Issues: Read and Write 権限で作成:\n'
+                    + 'https://github.com/settings/personal-access-tokens/new'
+                );
+                if (!token || !token.trim()) return;
+                token = token.trim();
+                localStorage.setItem('machinations_github_token', token);
+            }
+
             // カテゴリ → ラベル/プレフィックス
             var labelMap = {
                 enhancement: 'enhancement',
@@ -504,19 +518,45 @@
             var issueBody = body + '\n\n---\n_Machinations Web Simulator からのフィードバック_';
             var label = labelMap[category];
 
-            var url = 'https://github.com/dsgarage/machinations-web/issues/new'
-                + '?title=' + encodeURIComponent(issueTitle)
-                + '&body=' + encodeURIComponent(issueBody)
-                + '&labels=' + encodeURIComponent(label);
+            // ボタンを無効化
+            feedbackSubmit.disabled = true;
+            feedbackSubmit.textContent = '送信中...';
 
-            window.open(url, '_blank');
+            fetch('https://api.github.com/repos/dsgarage/machinations-web/issues', {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + token,
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/vnd.github+json'
+                },
+                body: JSON.stringify({
+                    title: issueTitle,
+                    body: issueBody,
+                    labels: [label]
+                })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                feedbackSubmit.disabled = false;
+                feedbackSubmit.textContent = 'GitHub Issue を作成';
 
-            // フォームリセット
-            document.getElementById('feedback-title').value = '';
-            document.getElementById('feedback-body').value = '';
-            feedbackModal.style.display = 'none';
-
-            self.setStatus('GitHub Issue ページを開きました');
+                if (data.number) {
+                    // 成功
+                    document.getElementById('feedback-title').value = '';
+                    document.getElementById('feedback-body').value = '';
+                    feedbackModal.style.display = 'none';
+                    self.setStatus('Issue #' + data.number + ' を作成しました');
+                } else {
+                    // トークンが無効な場合はクリアして再入力を促す
+                    localStorage.removeItem('machinations_github_token');
+                    alert('Issue 作成に失敗しました: ' + (data.message || 'エラー') + '\n\nトークンを再入力してください');
+                }
+            })
+            .catch(function(err) {
+                feedbackSubmit.disabled = false;
+                feedbackSubmit.textContent = 'GitHub Issue を作成';
+                alert('通信エラー: ' + err.message);
+            });
         });
     };
 
