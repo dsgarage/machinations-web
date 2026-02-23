@@ -470,6 +470,11 @@ body {
 .prop-type-endCondition { background: #ffebee; color: #c62828; }
 .prop-type-resourceConnection { background: #e3f2fd; color: #1565c0; }
 .prop-type-stateConnection { background: #fce4ec; color: #880e4f; }
+.prop-type-delay { background: #e0f7fa; color: #00838f; }
+.prop-type-queue { background: #fce4ec; color: #c62828; }
+.prop-type-textLabel { background: #f5f5f5; color: #666; }
+.prop-type-group { background: #e8eaf6; color: #3f51b5; }
+.prop-type-chart { background: #e3f2fd; color: #1565c0; }
 
 /* State connection subtype section */
 .state-subtype-section {
@@ -548,6 +553,11 @@ body {
 [data-theme="dark"] .prop-type-trader { background: #bf360c; color: #ffab91; }
 [data-theme="dark"] .prop-type-register { background: #424242; color: #bdbdbd; }
 [data-theme="dark"] .prop-type-endCondition { background: #b71c1c; color: #ef9a9a; }
+[data-theme="dark"] .prop-type-delay { background: #004d40; color: #80cbc4; }
+[data-theme="dark"] .prop-type-queue { background: #b71c1c; color: #ef9a9a; }
+[data-theme="dark"] .prop-type-textLabel { background: #424242; color: #bdbdbd; }
+[data-theme="dark"] .prop-type-group { background: #283593; color: #9fa8da; }
+[data-theme="dark"] .prop-type-chart { background: #0d47a1; color: #90caf9; }
 
 /* ===== Interactive mode click indicator ===== */
 .interactive-click-target {
@@ -663,6 +673,25 @@ body {
     font-size: 11px;
     color: var(--text-secondary);
     line-height: 1.4;
+}
+
+/* ===== Minimap ===== */
+#minimap {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    width: 180px;
+    height: 120px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    box-shadow: var(--shadow);
+    z-index: 10;
+    opacity: 0.85;
+}
+#minimap-canvas {
+    width: 100%;
+    height: 100%;
 }
 
 /* ===== Responsive ===== */

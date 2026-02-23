@@ -75,6 +75,30 @@
             self.stepSimulation();
         });
 
+        // Reset
+        var btnReset = document.getElementById('btn-reset');
+        if (btnReset) {
+            btnReset.addEventListener('click', function() {
+                self.resetSimulation();
+            });
+        }
+
+        // Quick Run (placeholder)
+        var btnQuickrun = document.getElementById('btn-quickrun');
+        if (btnQuickrun) {
+            btnQuickrun.addEventListener('click', function() {
+                self.setStatus('高速実行は今後のバージョンで実装予定');
+            });
+        }
+
+        // Multi Run (placeholder)
+        var btnMultirun = document.getElementById('btn-multirun');
+        if (btnMultirun) {
+            btnMultirun.addEventListener('click', function() {
+                self.setStatus('統計実行は今後のバージョンで実装予定');
+            });
+        }
+
         // Speed
         var speedSlider = document.getElementById('speed-slider');
         var speedValue = document.getElementById('speed-value');
