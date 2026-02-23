@@ -244,18 +244,6 @@
             return;
         }
 
-        // D: Delay
-        if (e.key === 'd' || e.key === 'D') {
-            this.app.toolbar.setTool('delay');
-            return;
-        }
-
-        // Q: Queue
-        if (e.key === 'q' || e.key === 'Q') {
-            this.app.toolbar.setTool('queue');
-            return;
-        }
-
         // R: Resource connection
         if (e.key === 'r' || e.key === 'R') {
             this.app.toolbar.setTool('resourceConnection');

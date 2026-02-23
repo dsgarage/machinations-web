@@ -129,6 +129,24 @@ window.Machinations = window.Machinations || {};
                 capacity: -1,
                 activationMode: 'automatic'
             }
+        },
+        textLabel: {
+            name: 'テキストラベル',
+            shape: 'textShape',
+            fill: 'transparent',
+            stroke: '#999999',
+            defaults: {
+                text: ''
+            }
+        },
+        group: {
+            name: 'グループ',
+            shape: 'groupRect',
+            fill: 'rgba(100,100,200,0.05)',
+            stroke: '#3f51b5',
+            defaults: {
+                name: 'グループ'
+            }
         }
     };
 

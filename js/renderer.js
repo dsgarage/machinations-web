@@ -145,7 +145,7 @@
             } else if (node.type === 'delay') {
                 valueText.textContent = node._delayQueue ? node._delayQueue.reduce(function(s, e) { return s + e.amount; }, 0) : 0;
             } else if (node.type === 'queue') {
-                valueText.textContent = node._queueBuffer ? node._queueBuffer.reduce(function(s, e) { return s + e; }, 0) : 0;
+                valueText.textContent = node._fifoQueue ? node._fifoQueue.reduce(function(s, e) { return s + e; }, 0) : 0;
             } else {
                 valueText.textContent = Math.round(node.resources);
             }
@@ -651,7 +651,7 @@
             } else if (node.type === 'delay') {
                 valueText.textContent = node._delayQueue ? node._delayQueue.reduce(function(s, e) { return s + e.amount; }, 0) : 0;
             } else if (node.type === 'queue') {
-                valueText.textContent = node._queueBuffer ? node._queueBuffer.reduce(function(s, e) { return s + e; }, 0) : 0;
+                valueText.textContent = node._fifoQueue ? node._fifoQueue.reduce(function(s, e) { return s + e; }, 0) : 0;
             } else {
                 valueText.textContent = Math.round(node.resources);
             }
