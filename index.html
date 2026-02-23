@@ -169,14 +169,25 @@
         <!-- チャートデータパネル -->
         <div id="chart-panel" style="display:none">
             <div id="chart-panel-header">
-                <span id="chart-panel-title">チャートデータ</span>
-                <button id="chart-panel-close" title="閉じる">&times;</button>
+                <span id="chart-panel-title">Simulation Charts</span>
+                <div id="chart-panel-actions">
+                    <button id="chart-panel-toggle" class="chart-action-btn" title="テーブル/グラフ切替">
+                        <svg viewBox="0 0 20 20" width="14" height="14"><rect x="2" y="2" width="16" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="2" y1="8" x2="18" y2="8" stroke="currentColor" stroke-width="1"/><line x1="8" y1="8" x2="8" y2="18" stroke="currentColor" stroke-width="1"/></svg>
+                    </button>
+                    <button id="chart-panel-close" class="chart-action-btn" title="閉じる">&times;</button>
+                </div>
             </div>
             <div id="chart-panel-body">
-                <table id="chart-table">
-                    <thead id="chart-thead"><tr></tr></thead>
-                    <tbody id="chart-tbody"></tbody>
-                </table>
+                <div id="chart-graph">
+                    <svg id="chart-svg" width="100%" height="100%"></svg>
+                    <div id="chart-legend"></div>
+                </div>
+                <div id="chart-table-view" style="display:none">
+                    <table id="chart-table">
+                        <thead id="chart-thead"><tr></tr></thead>
+                        <tbody id="chart-tbody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
 

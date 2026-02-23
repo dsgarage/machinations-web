@@ -352,11 +352,29 @@
         var self = this;
         var panel = document.getElementById('chart-panel');
         var closeBtn = document.getElementById('chart-panel-close');
+        var toggleBtn = document.getElementById('chart-panel-toggle');
         var header = document.getElementById('chart-panel-header');
+
+        this._chartShowGraph = true; // true=グラフ, false=テーブル
 
         closeBtn.addEventListener('click', function() {
             self._chartPanelVisible = false;
             panel.style.display = 'none';
+        });
+
+        // グラフ/テーブル切替
+        toggleBtn.addEventListener('click', function() {
+            self._chartShowGraph = !self._chartShowGraph;
+            var graphView = document.getElementById('chart-graph');
+            var tableView = document.getElementById('chart-table-view');
+            if (self._chartShowGraph) {
+                graphView.style.display = 'flex';
+                tableView.style.display = 'none';
+            } else {
+                graphView.style.display = 'none';
+                tableView.style.display = 'block';
+            }
+            self.updateChartPanel();
         });
 
         // ドラッグでリサイズ
@@ -364,7 +382,7 @@
         var startY = 0;
         var startH = 0;
         header.addEventListener('mousedown', function(e) {
-            if (e.target === closeBtn) return;
+            if (e.target === closeBtn || e.target.closest('.chart-action-btn')) return;
             resizing = true;
             startY = e.clientY;
             startH = panel.offsetHeight;
@@ -405,7 +423,7 @@
         // 全シリーズを統合: { seriesName: [values] }
         var allSeries = {};
         var seriesColors = {};
-        var colors = ['#1976d2', '#e53935', '#43a047', '#ff9800', '#9c27b0', '#00bcd4'];
+        var colors = ['#6C5CE7', '#e53935', '#00B894', '#ff9800', '#0984e3', '#00bcd4', '#FF6B6B', '#a29bfe'];
         var colorIdx = 0;
         var maxLen = 0;
 
@@ -413,29 +431,38 @@
             var cd = chartNodes[c].chartData;
             for (var name in cd) {
                 if (!allSeries[name]) {
-                    allSeries[name] = cd[name];
                     seriesColors[name] = colors[colorIdx % colors.length];
                     colorIdx++;
-                } else {
-                    allSeries[name] = cd[name];
                 }
+                allSeries[name] = cd[name];
                 if (cd[name].length > maxLen) maxLen = cd[name].length;
             }
         }
 
-        // ヘッダー構築
-        var thead = document.getElementById('chart-thead');
-        var headerHtml = '<tr><th>Step</th>';
         var seriesNames = [];
         for (var name in allSeries) {
             seriesNames.push(name);
-            var c = seriesColors[name] || '#666';
-            headerHtml += '<th style="color:' + c + '">' + name + '</th>';
+        }
+
+        // テーブルも常に更新
+        this._updateChartTable(allSeries, seriesNames, seriesColors, maxLen);
+
+        // グラフ表示ならSVG描画
+        if (this._chartShowGraph) {
+            this._updateChartSVG(allSeries, seriesNames, seriesColors, maxLen);
+        }
+    };
+
+    App.prototype._updateChartTable = function(allSeries, seriesNames, seriesColors, maxLen) {
+        var thead = document.getElementById('chart-thead');
+        var headerHtml = '<tr><th>Step</th>';
+        for (var i = 0; i < seriesNames.length; i++) {
+            var c = seriesColors[seriesNames[i]] || '#666';
+            headerHtml += '<th style="color:' + c + '">' + seriesNames[i] + '</th>';
         }
         headerHtml += '</tr>';
         thead.innerHTML = headerHtml;
 
-        // ボディ構築
         var tbody = document.getElementById('chart-tbody');
         var bodyHtml = '';
         for (var step = 0; step < maxLen; step++) {
@@ -450,9 +477,154 @@
         }
         tbody.innerHTML = bodyHtml;
 
-        // 最新行にスクロール
-        var panelBody = document.getElementById('chart-panel-body');
-        panelBody.scrollTop = panelBody.scrollHeight;
+        // テーブル表示中なら最新行にスクロール
+        if (!this._chartShowGraph) {
+            var tableView = document.getElementById('chart-table-view');
+            tableView.scrollTop = tableView.scrollHeight;
+        }
+    };
+
+    App.prototype._updateChartSVG = function(allSeries, seriesNames, seriesColors, maxLen) {
+        var svg = document.getElementById('chart-svg');
+        var legend = document.getElementById('chart-legend');
+
+        var rect = svg.getBoundingClientRect();
+        var W = rect.width || 600;
+        var H = rect.height || 200;
+
+        if (W < 10 || H < 10) return;
+
+        // マージン
+        var ml = 60, mr = 20, mt = 20, mb = 30;
+        var pw = W - ml - mr;  // プロット幅
+        var ph = H - mt - mb;  // プロット高
+
+        if (pw < 10 || ph < 10) return;
+
+        // 値の範囲を計算
+        var yMin = Infinity, yMax = -Infinity;
+        for (var i = 0; i < seriesNames.length; i++) {
+            var data = allSeries[seriesNames[i]];
+            for (var j = 0; j < data.length; j++) {
+                var v = data[j];
+                if (typeof v === 'number') {
+                    if (v < yMin) yMin = v;
+                    if (v > yMax) yMax = v;
+                }
+            }
+        }
+        if (yMin === Infinity) { yMin = 0; yMax = 10; }
+        if (yMin === yMax) { yMin -= 1; yMax += 1; }
+
+        // 少し余裕を持たせる
+        var yRange = yMax - yMin;
+        yMin = yMin - yRange * 0.05;
+        yMax = yMax + yRange * 0.05;
+        if (yMin < 0 && (yMin + yRange * 0.05) >= 0) yMin = 0;
+
+        // Y軸の目盛り数（5〜8本程度）
+        var yTicks = this._calcNiceTicks(yMin, yMax, 6);
+
+        // X軸の目盛り
+        var xTicks = [];
+        if (maxLen <= 10) {
+            for (var t = 1; t <= maxLen; t++) xTicks.push(t);
+        } else {
+            var xStep = Math.ceil(maxLen / 8);
+            for (var t = xStep; t <= maxLen; t += xStep) xTicks.push(t);
+            if (xTicks[xTicks.length - 1] !== maxLen) xTicks.push(maxLen);
+        }
+
+        var isDark = this._isDark;
+        var gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+        var axisColor = isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)';
+        var textColor = isDark ? '#a0a3b1' : '#636e72';
+
+        // SVG構築
+        var html = '';
+
+        // グリッド横線 + Y軸ラベル
+        for (var i = 0; i < yTicks.length; i++) {
+            var y = mt + ph - (yTicks[i] - yMin) / (yMax - yMin) * ph;
+            html += '<line x1="' + ml + '" y1="' + y + '" x2="' + (ml + pw) + '" y2="' + y + '" stroke="' + gridColor + '" stroke-width="1"/>';
+            var label = yTicks[i];
+            if (Math.abs(label) >= 1000) label = (label / 1000).toFixed(1) + 'k';
+            else if (label % 1 !== 0) label = label.toFixed(1);
+            html += '<text x="' + (ml - 8) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10" fill="' + textColor + '">' + label + '</text>';
+        }
+
+        // グリッド縦線 + X軸ラベル
+        for (var i = 0; i < xTicks.length; i++) {
+            var x = ml + (xTicks[i] - 1) / Math.max(maxLen - 1, 1) * pw;
+            html += '<line x1="' + x + '" y1="' + mt + '" x2="' + x + '" y2="' + (mt + ph) + '" stroke="' + gridColor + '" stroke-width="1"/>';
+            html += '<text x="' + x + '" y="' + (mt + ph + 16) + '" text-anchor="middle" font-size="10" fill="' + textColor + '">' + xTicks[i] + '</text>';
+        }
+
+        // 軸線
+        html += '<line x1="' + ml + '" y1="' + mt + '" x2="' + ml + '" y2="' + (mt + ph) + '" stroke="' + axisColor + '" stroke-width="1"/>';
+        html += '<line x1="' + ml + '" y1="' + (mt + ph) + '" x2="' + (ml + pw) + '" y2="' + (mt + ph) + '" stroke="' + axisColor + '" stroke-width="1"/>';
+
+        // 各シリーズのポリライン
+        for (var s = 0; s < seriesNames.length; s++) {
+            var data = allSeries[seriesNames[s]];
+            var color = seriesColors[seriesNames[s]];
+            var points = '';
+            for (var d = 0; d < data.length; d++) {
+                var v = data[d];
+                if (typeof v !== 'number') continue;
+                var x = ml + d / Math.max(maxLen - 1, 1) * pw;
+                var y = mt + ph - (v - yMin) / (yMax - yMin) * ph;
+                points += (points ? ' ' : '') + x.toFixed(1) + ',' + y.toFixed(1);
+            }
+            if (points) {
+                html += '<polyline points="' + points + '" fill="none" stroke="' + color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+                // 最新ポイントにドット
+                if (data.length > 0) {
+                    var lastV = data[data.length - 1];
+                    if (typeof lastV === 'number') {
+                        var lx = ml + (data.length - 1) / Math.max(maxLen - 1, 1) * pw;
+                        var ly = mt + ph - (lastV - yMin) / (yMax - yMin) * ph;
+                        html += '<circle cx="' + lx.toFixed(1) + '" cy="' + ly.toFixed(1) + '" r="3.5" fill="' + color + '" stroke="' + (isDark ? '#222336' : '#fff') + '" stroke-width="1.5"/>';
+                    }
+                }
+            }
+        }
+
+        svg.innerHTML = html;
+
+        // レジェンド更新
+        var legendHtml = '';
+        for (var s = 0; s < seriesNames.length; s++) {
+            var color = seriesColors[seriesNames[s]];
+            var data = allSeries[seriesNames[s]];
+            var lastVal = data.length > 0 ? data[data.length - 1] : '-';
+            if (typeof lastVal === 'number') lastVal = Math.round(lastVal * 100) / 100;
+            legendHtml += '<span class="chart-legend-item">'
+                + '<span class="chart-legend-dot" style="background:' + color + '"></span>'
+                + seriesNames[s] + ': <strong>' + lastVal + '</strong></span>';
+        }
+        legend.innerHTML = legendHtml;
+    };
+
+    App.prototype._calcNiceTicks = function(min, max, targetCount) {
+        var range = max - min;
+        if (range <= 0) return [min];
+        var rawStep = range / targetCount;
+        var magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
+        var normalized = rawStep / magnitude;
+        var niceStep;
+        if (normalized <= 1.5) niceStep = 1;
+        else if (normalized <= 3) niceStep = 2;
+        else if (normalized <= 7) niceStep = 5;
+        else niceStep = 10;
+        niceStep *= magnitude;
+
+        var ticks = [];
+        var start = Math.ceil(min / niceStep) * niceStep;
+        for (var v = start; v <= max + niceStep * 0.01; v += niceStep) {
+            ticks.push(Math.round(v * 1e10) / 1e10);
+        }
+        return ticks;
     };
 
     // ===== Feedback =====
