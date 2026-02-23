@@ -129,6 +129,12 @@
                 return this._sampleSimWar();
             case 'diceGate':
                 return this._sampleDiceGate();
+            case 'playerSkill':
+                return this._samplePlayerSkill();
+            case 'metaDynamic':
+                return this._sampleMetaDynamic();
+            case 'multiplayerDynamic':
+                return this._sampleMultiplayerDynamic();
             default:
                 return null;
         }
@@ -680,6 +686,264 @@
                 {
                     id: 'c5', type: 'resourceConnection', source: 'n_gate', target: 'n_poolC',
                     properties: { rate: 1, label: '20%' }
+                }
+            ]
+        };
+    };
+
+    // ===== Determinability Patterns =====
+
+    IO.prototype._samplePlayerSkill = function() {
+        return {
+            name: 'Player Skill: テトリス型スキル分析',
+            nodes: [
+                {
+                    id: 'ps_src', type: 'source', x: 120, y: 200,
+                    properties: { name: 'ブロック落下', activationMode: 'automatic', production: 'D6' }
+                },
+                {
+                    id: 'ps_field', type: 'pool', x: 320, y: 200,
+                    properties: { name: 'フィールド', capacity: 20, startValue: 5, activationMode: 'passive', pullMode: 'pull' }
+                },
+                {
+                    id: 'ps_drain', type: 'drain', x: 520, y: 200,
+                    properties: { name: 'ライン消去', activationMode: 'automatic', consumption: 5 }
+                },
+                {
+                    id: 'ps_skill', type: 'register', x: 520, y: 60,
+                    properties: { name: 'スキル', value: 5, formula: '' }
+                },
+                {
+                    id: 'ps_end', type: 'endCondition', x: 320, y: 360,
+                    properties: { name: 'GAME OVER', condition: '{フィールド} >= 20' }
+                },
+                {
+                    id: 'ps_chart', type: 'chart', x: 700, y: 200,
+                    properties: { name: 'スキル分析', activationMode: 'passive', maxDataPoints: 200 }
+                }
+            ],
+            connections: [
+                {
+                    id: 'ps_c1', type: 'resourceConnection', source: 'ps_src', target: 'ps_field',
+                    properties: { rate: 'D6', label: 'D6' }
+                },
+                {
+                    id: 'ps_c2', type: 'resourceConnection', source: 'ps_field', target: 'ps_drain',
+                    properties: { rate: 5, label: '' }
+                },
+                {
+                    id: 'ps_s1', type: 'stateConnection', source: 'ps_skill', target: 'ps_drain',
+                    properties: { stateType: 'nodeModifier', formula: 'self', condition: '', label: 'スキル→消去速度' }
+                },
+                {
+                    id: 'ps_s2', type: 'stateConnection', source: 'ps_field', target: 'ps_chart',
+                    properties: { stateType: 'labelModifier', formula: '', condition: '', label: '' }
+                },
+                {
+                    id: 'ps_s3', type: 'stateConnection', source: 'ps_skill', target: 'ps_chart',
+                    properties: { stateType: 'labelModifier', formula: '', condition: '', label: '' }
+                }
+            ]
+        };
+    };
+
+    IO.prototype._sampleMetaDynamic = function() {
+        return {
+            name: 'Meta-dynamic: 攻守の戦略的投資',
+            nodes: [
+                // 戦略パラメータ
+                {
+                    id: 'md_ratio', type: 'register', x: 100, y: 60,
+                    properties: { name: '攻撃偏重度', value: 7, formula: '' }
+                },
+                // 経済
+                {
+                    id: 'md_income', type: 'source', x: 100, y: 200,
+                    properties: { name: '経済収入', activationMode: 'automatic', production: 5 }
+                },
+                {
+                    id: 'md_fund', type: 'pool', x: 280, y: 200,
+                    properties: { name: '資金', capacity: -1, startValue: 30, activationMode: 'passive', pullMode: 'pull' }
+                },
+                // 攻撃系
+                {
+                    id: 'md_atkSrc', type: 'source', x: 460, y: 100,
+                    properties: { name: '攻撃投資', activationMode: 'automatic', production: 7 }
+                },
+                {
+                    id: 'md_atk', type: 'pool', x: 640, y: 100,
+                    properties: { name: '攻撃力', capacity: -1, startValue: 0, activationMode: 'passive', pullMode: 'pull' }
+                },
+                // 防御系
+                {
+                    id: 'md_defSrc', type: 'source', x: 460, y: 300,
+                    properties: { name: '防御投資', activationMode: 'automatic', production: 3 }
+                },
+                {
+                    id: 'md_def', type: 'pool', x: 640, y: 300,
+                    properties: { name: '防御力', capacity: -1, startValue: 0, activationMode: 'passive', pullMode: 'pull' }
+                },
+                // 敵側
+                {
+                    id: 'md_enemyAtk', type: 'source', x: 460, y: 450,
+                    properties: { name: '敵の攻撃', activationMode: 'automatic', production: 5 }
+                },
+                {
+                    id: 'md_damage', type: 'pool', x: 640, y: 450,
+                    properties: { name: '被害蓄積', capacity: -1, startValue: 0, activationMode: 'passive', pullMode: 'pull' }
+                },
+                {
+                    id: 'md_enemyHp', type: 'pool', x: 820, y: 100,
+                    properties: { name: '敵HP', capacity: -1, startValue: 30, activationMode: 'passive', pullMode: 'pull' }
+                },
+                {
+                    id: 'md_atkDrain', type: 'drain', x: 820, y: 200,
+                    properties: { name: '敵損耗', activationMode: 'automatic', consumption: 0 }
+                },
+                // 終了条件
+                {
+                    id: 'md_win', type: 'endCondition', x: 820, y: 300,
+                    properties: { name: '勝利/敗北', condition: '{敵HP} <= 0 || {被害蓄積} >= 30' }
+                },
+                // チャート
+                {
+                    id: 'md_chart', type: 'chart', x: 820, y: 450,
+                    properties: { name: '戦略分析', activationMode: 'passive', maxDataPoints: 200 }
+                }
+            ],
+            connections: [
+                // 経済 → 攻撃・防御は独立source（資金は直接使わず比喩的に表現）
+                // 攻撃偏重度 → 攻撃投資の生産量
+                {
+                    id: 'md_s1', type: 'stateConnection', source: 'md_ratio', target: 'md_atkSrc',
+                    properties: { stateType: 'nodeModifier', formula: 'self', condition: '', label: '偏重度→攻撃' }
+                },
+                // 攻撃偏重度 → 防御投資の生産量（10 - 偏重度）
+                {
+                    id: 'md_s2', type: 'stateConnection', source: 'md_ratio', target: 'md_defSrc',
+                    properties: { stateType: 'nodeModifier', formula: '10 - self', condition: '', label: '残り→防御' }
+                },
+                // 攻撃投資 → 攻撃力
+                {
+                    id: 'md_c1', type: 'resourceConnection', source: 'md_atkSrc', target: 'md_atk',
+                    properties: { rate: 7, label: '' }
+                },
+                // 防御投資 → 防御力
+                {
+                    id: 'md_c2', type: 'resourceConnection', source: 'md_defSrc', target: 'md_def',
+                    properties: { rate: 3, label: '' }
+                },
+                // 敵の攻撃 → 被害蓄積
+                {
+                    id: 'md_c3', type: 'resourceConnection', source: 'md_enemyAtk', target: 'md_damage',
+                    properties: { rate: 5, label: '' }
+                },
+                // 防御力 → 敵の攻撃を軽減
+                {
+                    id: 'md_s3', type: 'stateConnection', source: 'md_def', target: 'md_enemyAtk',
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, 5 - self * 0.15)', condition: '', label: '防御→被害軽減' }
+                },
+                // 攻撃力 → 敵へのダメージ
+                {
+                    id: 'md_s4', type: 'stateConnection', source: 'md_atk', target: 'md_atkDrain',
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(0, self * 0.3)', condition: '', label: '攻撃力→敵損耗' }
+                },
+                // 敵HP → 敵損耗
+                {
+                    id: 'md_c4', type: 'resourceConnection', source: 'md_enemyHp', target: 'md_atkDrain',
+                    properties: { rate: 1, label: '' }
+                },
+                // チャートへの接続
+                {
+                    id: 'md_s5', type: 'stateConnection', source: 'md_atk', target: 'md_chart',
+                    properties: { stateType: 'labelModifier', formula: '', condition: '', label: '' }
+                },
+                {
+                    id: 'md_s6', type: 'stateConnection', source: 'md_def', target: 'md_chart',
+                    properties: { stateType: 'labelModifier', formula: '', condition: '', label: '' }
+                },
+                {
+                    id: 'md_s7', type: 'stateConnection', source: 'md_enemyHp', target: 'md_chart',
+                    properties: { stateType: 'labelModifier', formula: '', condition: '', label: '' }
+                },
+                {
+                    id: 'md_s8', type: 'stateConnection', source: 'md_damage', target: 'md_chart',
+                    properties: { stateType: 'labelModifier', formula: '', condition: '', label: '' }
+                }
+            ]
+        };
+    };
+
+    IO.prototype._sampleMultiplayerDynamic = function() {
+        return {
+            name: 'Multiplayer-dynamic: 格闘ゲーム読み合い',
+            nodes: [
+                // P1
+                {
+                    id: 'mp_p1hp', type: 'pool', x: 200, y: 120,
+                    properties: { name: 'P1体力', capacity: 30, startValue: 30, activationMode: 'passive', pullMode: 'pull' }
+                },
+                {
+                    id: 'mp_p1dmg', type: 'drain', x: 200, y: 280,
+                    properties: { name: 'P1被弾', activationMode: 'automatic', consumption: 'D6' }
+                },
+                {
+                    id: 'mp_p1read', type: 'register', x: 600, y: 50,
+                    properties: { name: 'P1読み力', value: 5, formula: '' }
+                },
+                // P2
+                {
+                    id: 'mp_p2hp', type: 'pool', x: 600, y: 120,
+                    properties: { name: 'P2体力', capacity: 30, startValue: 30, activationMode: 'passive', pullMode: 'pull' }
+                },
+                {
+                    id: 'mp_p2dmg', type: 'drain', x: 600, y: 280,
+                    properties: { name: 'P2被弾', activationMode: 'automatic', consumption: 'D6' }
+                },
+                {
+                    id: 'mp_p2read', type: 'register', x: 200, y: 50,
+                    properties: { name: 'P2読み力', value: 5, formula: '' }
+                },
+                // 終了条件
+                {
+                    id: 'mp_end', type: 'endCondition', x: 400, y: 400,
+                    properties: { name: 'KO', condition: '{P1体力} <= 0 || {P2体力} <= 0' }
+                },
+                // チャート
+                {
+                    id: 'mp_chart', type: 'chart', x: 400, y: 120,
+                    properties: { name: 'HP推移', activationMode: 'passive', maxDataPoints: 200 }
+                }
+            ],
+            connections: [
+                // P1体力 → P1被弾（P2の攻撃でP1が減る）
+                {
+                    id: 'mp_c1', type: 'resourceConnection', source: 'mp_p1hp', target: 'mp_p1dmg',
+                    properties: { rate: 'D6', label: '' }
+                },
+                // P2体力 → P2被弾（P1の攻撃でP2が減る）
+                {
+                    id: 'mp_c2', type: 'resourceConnection', source: 'mp_p2hp', target: 'mp_p2dmg',
+                    properties: { rate: 'D6', label: '' }
+                },
+                // P1の読み力 → P2へのダメージを増加
+                {
+                    id: 'mp_s1', type: 'stateConnection', source: 'mp_p1read', target: 'mp_p2dmg',
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, D6 * self / 5)', condition: '', label: 'P1読み→P2ダメージ' }
+                },
+                // P2の読み力 → P1へのダメージを増加
+                {
+                    id: 'mp_s2', type: 'stateConnection', source: 'mp_p2read', target: 'mp_p1dmg',
+                    properties: { stateType: 'nodeModifier', formula: 'Math.max(1, D6 * self / 5)', condition: '', label: 'P2読み→P1ダメージ' }
+                },
+                // チャートへの接続
+                {
+                    id: 'mp_s3', type: 'stateConnection', source: 'mp_p1hp', target: 'mp_chart',
+                    properties: { stateType: 'labelModifier', formula: '', condition: '', label: '' }
+                },
+                {
+                    id: 'mp_s4', type: 'stateConnection', source: 'mp_p2hp', target: 'mp_chart',
+                    properties: { stateType: 'labelModifier', formula: '', condition: '', label: '' }
                 }
             ]
         };
