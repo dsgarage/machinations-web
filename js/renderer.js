@@ -17,7 +17,11 @@
         trader: { radius: 28 },
         register: { width: 60, height: 36 },
         endCondition: { radius: 30 },
-        chart: { width: 120, height: 80 }
+        chart: { width: 120, height: 80 },
+        delay: { width: 60, height: 40 },
+        queue: { width: 60, height: 40 },
+        textLabel: { width: 100, height: 30 },
+        group: { width: 200, height: 150 }
     };
 
     function Renderer(svgElement, graph) {
@@ -48,6 +52,7 @@
     Renderer.prototype.updateTransform = function() {
         var transform = 'translate(' + this.panX + ',' + this.panY + ') scale(' + this.zoom + ')';
         this.canvasGroup.setAttribute('transform', transform);
+        this.updateMinimap();
     };
 
     Renderer.prototype.screenToWorld = function(screenX, screenY) {
@@ -97,6 +102,7 @@
         for (var i = 0; i < nodes.length; i++) {
             this.renderNode(nodes[i]);
         }
+        this.updateMinimap();
     };
 
     // ===== Node Rendering =====
@@ -127,16 +133,22 @@
         }
 
         // Value display
-        if (node.type === 'pool' || node.type === 'register') {
+        if (node.type === 'pool' || node.type === 'register' || node.type === 'delay' || node.type === 'queue') {
             var valueText = this._createSVG('text', {
                 'class': 'node-value',
                 'x': 0,
                 'y': 5,
                 'text-anchor': 'middle'
             });
-            valueText.textContent = node.type === 'register' ?
-                (node.properties.value || 0) :
-                Math.round(node.resources);
+            if (node.type === 'register') {
+                valueText.textContent = node.properties.value || 0;
+            } else if (node.type === 'delay') {
+                valueText.textContent = node._delayQueue ? node._delayQueue.reduce(function(s, e) { return s + e.amount; }, 0) : 0;
+            } else if (node.type === 'queue') {
+                valueText.textContent = node._queueBuffer ? node._queueBuffer.reduce(function(s, e) { return s + e; }, 0) : 0;
+            } else {
+                valueText.textContent = Math.round(node.resources);
+            }
             g.appendChild(valueText);
         }
 
@@ -314,6 +326,69 @@
                     'opacity': 0.3
                 });
                 shape.appendChild(iconPath);
+                break;
+            }
+
+            case 'delayRect': {
+                var dw = NODE_SIZES.delay.width;
+                var dh = NODE_SIZES.delay.height;
+                shape = this._createSVG('g', { 'class': 'node-shape' });
+                var bg = this._createSVG('rect', {
+                    'x': -dw/2, 'y': -dh/2, 'width': dw, 'height': dh,
+                    'rx': 6, 'fill': fill, 'stroke': stroke, 'stroke-width': 2
+                });
+                shape.appendChild(bg);
+                // Delay indicator line
+                var line = this._createSVG('line', {
+                    'x1': dw/2 - 12, 'y1': -dh/2 + 4, 'x2': dw/2 - 12, 'y2': dh/2 - 4,
+                    'stroke': stroke, 'stroke-width': 1.5, 'opacity': 0.5
+                });
+                shape.appendChild(line);
+                break;
+            }
+
+            case 'queueRect': {
+                var qw = NODE_SIZES.queue.width;
+                var qh = NODE_SIZES.queue.height;
+                shape = this._createSVG('g', { 'class': 'node-shape' });
+                var bg = this._createSVG('rect', {
+                    'x': -qw/2, 'y': -qh/2, 'width': qw, 'height': qh,
+                    'rx': 6, 'fill': fill, 'stroke': stroke, 'stroke-width': 2
+                });
+                shape.appendChild(bg);
+                // FIFO indicator (3 vertical lines)
+                for (var qi = 0; qi < 3; qi++) {
+                    var lx = -qw/2 + 12 + qi * 12;
+                    var ql = this._createSVG('line', {
+                        'x1': lx, 'y1': -qh/2 + 6, 'x2': lx, 'y2': qh/2 - 6,
+                        'stroke': stroke, 'stroke-width': 1, 'opacity': 0.3
+                    });
+                    shape.appendChild(ql);
+                }
+                break;
+            }
+
+            case 'textShape': {
+                var tw = NODE_SIZES.textLabel.width;
+                var th = NODE_SIZES.textLabel.height;
+                shape = this._createSVG('rect', {
+                    'class': 'node-shape',
+                    'x': -tw/2, 'y': -th/2, 'width': tw, 'height': th,
+                    'fill': 'transparent', 'stroke': stroke,
+                    'stroke-width': 1, 'stroke-dasharray': '4,2', 'opacity': 0.3
+                });
+                break;
+            }
+
+            case 'groupRect': {
+                var gw = NODE_SIZES.group.width;
+                var gh = NODE_SIZES.group.height;
+                shape = this._createSVG('rect', {
+                    'class': 'node-shape',
+                    'x': -gw/2, 'y': -gh/2, 'width': gw, 'height': gh,
+                    'rx': 8, 'fill': fill, 'stroke': stroke,
+                    'stroke-width': 1.5, 'stroke-dasharray': '8,4'
+                });
                 break;
             }
 
@@ -573,6 +648,10 @@
         if (valueText) {
             if (node.type === 'register') {
                 valueText.textContent = Math.round((node.properties.value || 0) * 100) / 100;
+            } else if (node.type === 'delay') {
+                valueText.textContent = node._delayQueue ? node._delayQueue.reduce(function(s, e) { return s + e.amount; }, 0) : 0;
+            } else if (node.type === 'queue') {
+                valueText.textContent = node._queueBuffer ? node._queueBuffer.reduce(function(s, e) { return s + e; }, 0) : 0;
             } else {
                 valueText.textContent = Math.round(node.resources);
             }
@@ -713,14 +792,15 @@
         var count = Math.min(Math.max(1, Math.round(flow.amount)), 12);
         var duration = 500;
         var self = this;
+        var tokenColor = (flow.color && flow.color !== 'default') ? flow.color : null;
 
         // Launch all tokens at once, each with a slight offset along the curve
         for (var i = 0; i < count; i++) {
-            self._launchToken(bezier, duration, points.tx, points.ty, i, count);
+            self._launchToken(bezier, duration, points.tx, points.ty, i, count, tokenColor);
         }
     };
 
-    Renderer.prototype._launchToken = function(bezier, duration, endX, endY, index, total) {
+    Renderer.prototype._launchToken = function(bezier, duration, endX, endY, index, total, tokenColor) {
         if (this._animationTokens.length >= 60) return;
 
         // Cluster offset: tokens start slightly behind each other on the curve
@@ -734,6 +814,10 @@
             'cx': bezier.p0x,
             'cy': bezier.p0y
         });
+        if (tokenColor) {
+            token.setAttribute('fill', tokenColor);
+            token.setAttribute('stroke', this._darkenColor(tokenColor));
+        }
         this.animationsLayer.appendChild(token);
         this._animationTokens.push(token);
 
@@ -895,6 +979,110 @@
         var projX = x1 + t * dx;
         var projY = y1 + t * dy;
         return Math.sqrt((px - projX) * (px - projX) + (py - projY) * (py - projY));
+    };
+
+    // ===== Color Helpers =====
+
+    Renderer.prototype._darkenColor = function(hex) {
+        // Darken a hex color by 30%
+        var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        if (!result) return '#000000';
+        var r = Math.max(0, Math.round(parseInt(result[1], 16) * 0.7));
+        var g = Math.max(0, Math.round(parseInt(result[2], 16) * 0.7));
+        var b = Math.max(0, Math.round(parseInt(result[3], 16) * 0.7));
+        return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    };
+
+    // ===== Minimap =====
+
+    Renderer.prototype.updateMinimap = function() {
+        var canvas = document.getElementById('minimap-canvas');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        var mw = canvas.width;
+        var mh = canvas.height;
+
+        ctx.clearRect(0, 0, mw, mh);
+
+        var nodes = this.graph.getAllNodes();
+        if (nodes.length === 0) return;
+
+        // Find bounds
+        var minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            if (n.x < minX) minX = n.x;
+            if (n.y < minY) minY = n.y;
+            if (n.x > maxX) maxX = n.x;
+            if (n.y > maxY) maxY = n.y;
+        }
+
+        // Add padding
+        var pad = 80;
+        minX -= pad; minY -= pad;
+        maxX += pad; maxY += pad;
+
+        var rangeX = maxX - minX || 1;
+        var rangeY = maxY - minY || 1;
+        var scale = Math.min(mw / rangeX, mh / rangeY);
+
+        // Draw nodes as small dots
+        var typeColors = {
+            pool: '#4caf50',
+            source: '#4caf50',
+            drain: '#f44336',
+            converter: '#ff9800',
+            gate: '#9c27b0',
+            trader: '#ff5722',
+            register: '#9e9e9e',
+            endCondition: '#f44336',
+            chart: '#1976d2',
+            delay: '#00838f',
+            queue: '#c62828',
+            textLabel: '#666666',
+            group: '#3f51b5'
+        };
+
+        for (var i = 0; i < nodes.length; i++) {
+            var n = nodes[i];
+            var px = (n.x - minX) * scale;
+            var py = (n.y - minY) * scale;
+            ctx.beginPath();
+            ctx.arc(px, py, 3, 0, Math.PI * 2);
+            ctx.fillStyle = typeColors[n.type] || '#666';
+            ctx.fill();
+        }
+
+        // Draw connections as thin lines
+        var conns = this.graph.getAllConnections();
+        ctx.strokeStyle = 'rgba(128,128,128,0.4)';
+        ctx.lineWidth = 0.5;
+        for (var i = 0; i < conns.length; i++) {
+            var conn = conns[i];
+            var src = this.graph.getNode(conn.sourceId);
+            var tgt = this.graph.getNode(conn.targetId);
+            if (!src || !tgt) continue;
+            ctx.beginPath();
+            ctx.moveTo((src.x - minX) * scale, (src.y - minY) * scale);
+            ctx.lineTo((tgt.x - minX) * scale, (tgt.y - minY) * scale);
+            ctx.stroke();
+        }
+
+        // Draw viewport rectangle
+        var svgRect = this.svg.getBoundingClientRect();
+        var vpLeft = (0 - this.panX) / this.zoom;
+        var vpTop = (0 - this.panY) / this.zoom;
+        var vpRight = (svgRect.width - this.panX) / this.zoom;
+        var vpBottom = (svgRect.height - this.panY) / this.zoom;
+
+        var rx = (vpLeft - minX) * scale;
+        var ry = (vpTop - minY) * scale;
+        var rw = (vpRight - vpLeft) * scale;
+        var rh = (vpBottom - vpTop) * scale;
+
+        ctx.strokeStyle = 'rgba(33,150,243,0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(rx, ry, rw, rh);
     };
 
     M.Renderer = Renderer;

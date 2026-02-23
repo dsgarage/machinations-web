@@ -47,6 +47,14 @@
             case 'source':
                 html += '<div class="prop-group"><label>生産量</label><input type="text" data-prop="production" value="' + this._esc(String(node.properties.production || 1)) + '" placeholder="例: 1, D6, /3"></div>';
                 html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                html += '<div class="prop-group"><label>リソース色</label><select data-prop="resourceColor">';
+                html += '<option value="default">デフォルト</option>';
+                html += '<option value="#ff9800"' + (node.properties.resourceColor === '#ff9800' ? ' selected' : '') + '>オレンジ</option>';
+                html += '<option value="#2196f3"' + (node.properties.resourceColor === '#2196f3' ? ' selected' : '') + '>ブルー</option>';
+                html += '<option value="#4caf50"' + (node.properties.resourceColor === '#4caf50' ? ' selected' : '') + '>グリーン</option>';
+                html += '<option value="#f44336"' + (node.properties.resourceColor === '#f44336' ? ' selected' : '') + '>レッド</option>';
+                html += '<option value="#9c27b0"' + (node.properties.resourceColor === '#9c27b0' ? ' selected' : '') + '>パープル</option>';
+                html += '</select></div>';
                 break;
 
             case 'drain':
@@ -93,6 +101,23 @@
                     }
                 }
                 break;
+
+            case 'delay':
+                html += this._numberField('遅延ステップ', 'delay', node.properties.delay || 3);
+                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                break;
+
+            case 'queue':
+                html += this._numberField('容量 (-1=無限)', 'capacity', node.properties.capacity);
+                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                break;
+
+            case 'textLabel':
+                html += '<div class="prop-group"><label>テキスト</label><textarea data-prop="text" placeholder="テキストを入力...">' + this._esc(node.properties.text || '') + '</textarea></div>';
+                break;
+
+            case 'group':
+                break;
         }
 
         // Position
@@ -116,6 +141,14 @@
         if (conn.type === 'resourceConnection') {
             html += '<div class="prop-group"><label>レート</label><input type="text" data-prop="rate" value="' + this._esc(String(conn.properties.rate || 1)) + '" placeholder="例: 1, D6, &3, /2"></div>';
             html += '<div class="prop-group"><label>ラベル</label><input type="text" data-prop="label" value="' + this._esc(conn.properties.label || '') + '"></div>';
+            html += '<div class="prop-group"><label>色フィルター</label><select data-prop="colorFilter">';
+            html += '<option value="">全色</option>';
+            html += '<option value="#ff9800"' + (conn.properties.colorFilter === '#ff9800' ? ' selected' : '') + '>オレンジ</option>';
+            html += '<option value="#2196f3"' + (conn.properties.colorFilter === '#2196f3' ? ' selected' : '') + '>ブルー</option>';
+            html += '<option value="#4caf50"' + (conn.properties.colorFilter === '#4caf50' ? ' selected' : '') + '>グリーン</option>';
+            html += '<option value="#f44336"' + (conn.properties.colorFilter === '#f44336' ? ' selected' : '') + '>レッド</option>';
+            html += '<option value="#9c27b0"' + (conn.properties.colorFilter === '#9c27b0' ? ' selected' : '') + '>パープル</option>';
+            html += '</select></div>';
         } else if (conn.type === 'stateConnection') {
             html += this._selectField('サブタイプ', 'stateType', conn.properties.stateType || 'labelModifier', M.STATE_CONNECTION_TYPES);
             html += '<div class="prop-group"><label>計算式</label><textarea data-prop="formula" placeholder="例: self * 0.5">' + this._esc(conn.properties.formula || '') + '</textarea></div>';
