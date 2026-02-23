@@ -381,11 +381,11 @@ body {
 
 /* Resource token animation */
 .resource-token {
-    fill: var(--accent);
-    opacity: 0.8;
+    fill: #ff9800;
+    stroke: #e65100;
+    stroke-width: 0.5;
+    filter: drop-shadow(0 0 2px rgba(255, 152, 0, 0.6));
 }
-
-/* Pulse removed - was causing layout thrash during simulation */
 
 /* ===== Properties Panel ===== */
 #properties-panel {
