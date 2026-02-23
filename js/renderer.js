@@ -16,7 +16,8 @@
         gate: { width: 44, height: 44 },
         trader: { radius: 28 },
         register: { width: 60, height: 36 },
-        endCondition: { radius: 30 }
+        endCondition: { radius: 30 },
+        chart: { width: 120, height: 80 }
     };
 
     function Renderer(svgElement, graph) {
@@ -288,6 +289,34 @@
                 });
                 break;
 
+            case 'chartRect': {
+                var cw = NODE_SIZES.chart.width;
+                var ch = NODE_SIZES.chart.height;
+                shape = this._createSVG('g', { 'class': 'node-shape' });
+                var bg = this._createSVG('rect', {
+                    'x': -cw / 2, 'y': -ch / 2,
+                    'width': cw, 'height': ch,
+                    'rx': 6,
+                    'fill': fill,
+                    'stroke': stroke,
+                    'stroke-width': 2
+                });
+                shape.appendChild(bg);
+                // Small chart icon
+                var iconPath = this._createSVG('path', {
+                    'd': 'M' + (-cw/2 + 8) + ',' + (ch/2 - 8) +
+                         ' L' + (-cw/2 + 8) + ',' + (-ch/2 + 8) +
+                         ' M' + (-cw/2 + 8) + ',' + (ch/2 - 8) +
+                         ' L' + (cw/2 - 8) + ',' + (ch/2 - 8),
+                    'fill': 'none',
+                    'stroke': stroke,
+                    'stroke-width': 1,
+                    'opacity': 0.3
+                });
+                shape.appendChild(iconPath);
+                break;
+            }
+
             default:
                 shape = this._createSVG('circle', {
                     'class': 'node-shape',
@@ -315,12 +344,20 @@
 
     Renderer.prototype.getNodeBounds = function(node) {
         var sizes = NODE_SIZES[node.type] || { radius: 20 };
-        var r = sizes.radius || Math.max(sizes.width, sizes.height) / 2 || 20;
+        var w, h, r;
+        if (sizes.radius) {
+            r = sizes.radius;
+            w = h = r * 2;
+        } else {
+            w = sizes.width || 40;
+            h = sizes.height || 40;
+            r = Math.max(w, h) / 2;
+        }
         return {
-            x: node.x - r,
-            y: node.y - r,
-            width: r * 2,
-            height: r * 2,
+            x: node.x - w / 2,
+            y: node.y - h / 2,
+            width: w,
+            height: h,
             radius: r
         };
     };
@@ -529,6 +566,71 @@
         var nameLabel = el.querySelector('.node-label');
         if (nameLabel) {
             nameLabel.textContent = node.properties.name || '';
+        }
+
+        // Update chart mini-graph
+        if (node.type === 'chart' && node.chartData) {
+            this._updateChartGraph(el, node);
+        }
+    };
+
+    Renderer.prototype._updateChartGraph = function(el, node) {
+        // Remove old chart lines
+        var oldLines = el.querySelectorAll('.chart-line');
+        for (var i = 0; i < oldLines.length; i++) {
+            oldLines[i].parentNode.removeChild(oldLines[i]);
+        }
+
+        var cw = NODE_SIZES.chart.width;
+        var ch = NODE_SIZES.chart.height;
+        var padX = 10;
+        var padY = 12;
+        var plotW = cw - padX * 2;
+        var plotH = ch - padY * 2;
+
+        var colors = ['#1976d2', '#e53935', '#43a047', '#ff9800', '#9c27b0', '#00bcd4'];
+        var colorIdx = 0;
+
+        var chartData = node.chartData;
+        if (!chartData) return;
+
+        // Find global min/max for scaling
+        var globalMin = Infinity, globalMax = -Infinity;
+        for (var name in chartData) {
+            var data = chartData[name];
+            for (var j = 0; j < data.length; j++) {
+                if (data[j] < globalMin) globalMin = data[j];
+                if (data[j] > globalMax) globalMax = data[j];
+            }
+        }
+        if (globalMin === Infinity) return;
+        if (globalMax === globalMin) { globalMax = globalMin + 1; }
+
+        // Draw each series
+        var shapeGroup = el.querySelector('.node-shape');
+        var drawTarget = shapeGroup || el;
+
+        for (var name in chartData) {
+            var data = chartData[name];
+            if (data.length < 2) continue;
+
+            var points = [];
+            for (var j = 0; j < data.length; j++) {
+                var px = -cw/2 + padX + (j / (data.length - 1)) * plotW;
+                var py = ch/2 - padY - ((data[j] - globalMin) / (globalMax - globalMin)) * plotH;
+                points.push(px + ',' + py);
+            }
+
+            var polyline = this._createSVG('polyline', {
+                'class': 'chart-line',
+                'points': points.join(' '),
+                'fill': 'none',
+                'stroke': colors[colorIdx % colors.length],
+                'stroke-width': 1.5,
+                'stroke-linejoin': 'round'
+            });
+            drawTarget.appendChild(polyline);
+            colorIdx++;
         }
     };
 

@@ -216,7 +216,8 @@
             '6': 'gate',
             '7': 'trader',
             '8': 'register',
-            '9': 'endCondition'
+            '9': 'endCondition',
+            '0': 'chart'
         };
 
         if (toolMap[e.key]) {

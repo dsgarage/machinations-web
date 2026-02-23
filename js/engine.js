@@ -87,13 +87,16 @@
         // 7. Process drains
         this._processDrains();
 
-        // 8. Evaluate end conditions
+        // 8. Update chart nodes
+        this._updateCharts();
+
+        // 9. Evaluate end conditions
         var ended = this._evaluateEndConditions();
 
-        // 9. Evaluate triggers
+        // 10. Evaluate triggers
         this._evaluateTriggers();
 
-        // 10. Update step counter
+        // 11. Update step counter
         graph.stepCount++;
 
         // Reset activation flags
@@ -236,11 +239,91 @@
         return node.resources || 0;
     };
 
+    // ===== Dice Notation Parser =====
+    // Supports: D6, 2D6, D6+3, 2D6+3, D20, 3D6-1, D6*2
+    Engine.prototype._parseDice = function(expr) {
+        var dicePattern = /(\d*)D(\d+)/gi;
+        return expr.replace(dicePattern, function(match, count, sides) {
+            count = parseInt(count) || 1;
+            sides = parseInt(sides);
+            var total = 0;
+            for (var i = 0; i < count; i++) {
+                total += Math.floor(Math.random() * sides) + 1;
+            }
+            return String(total);
+        });
+    };
+
+    // ===== Rate Parser =====
+    // Parses rate strings with special notation: &N (all-or-nothing), /N (interval), D6 (dice)
+    Engine.prototype._parseRate = function(rateStr, node) {
+        if (typeof rateStr === 'number') return { value: rateStr, allOrNothing: false, interval: 0 };
+        var str = String(rateStr).trim();
+        if (!str) return { value: 1, allOrNothing: false, interval: 0 };
+
+        var allOrNothing = false;
+        var interval = 0;
+
+        // All-or-Nothing: &N
+        if (str.charAt(0) === '&') {
+            allOrNothing = true;
+            str = str.substring(1).trim();
+        }
+
+        // Interval: /N (fire every N steps)
+        var intervalMatch = str.match(/^\/(\d+)$/);
+        if (intervalMatch) {
+            interval = parseInt(intervalMatch[1]);
+            return { value: 1, allOrNothing: allOrNothing, interval: interval };
+        }
+
+        // Dice notation and formulas
+        str = this._parseDice(str);
+
+        // Node references
+        var graph = this.graph;
+        str = str.replace(/\{([^}]+)\}/g, function(match, nodeName) {
+            var nodes = graph.getAllNodes();
+            for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].properties.name === nodeName) {
+                    return nodes[i].resources || 0;
+                }
+            }
+            return 0;
+        });
+
+        if (node) {
+            str = str.replace(/\bself\b/g, String(node.resources || 0));
+        }
+
+        try {
+            var value = Function('"use strict"; return (' + str + ')')();
+            value = isNaN(value) ? 1 : value;
+            return { value: value, allOrNothing: allOrNothing, interval: interval };
+        } catch (e) {
+            return { value: 1, allOrNothing: allOrNothing, interval: interval };
+        }
+    };
+
+    // ===== Interval Check =====
+    Engine.prototype._checkInterval = function(node, interval) {
+        if (interval <= 0) return true;
+        node._intervalCounter = (node._intervalCounter || 0) + 1;
+        if (node._intervalCounter >= interval) {
+            node._intervalCounter = 0;
+            return true;
+        }
+        return false;
+    };
+
     Engine.prototype._evaluateFormula = function(formula, contextNode) {
         try {
+            // Replace dice notation first
+            var expr = this._parseDice(formula);
+
             // Replace node references with values
             var graph = this.graph;
-            var expr = formula.replace(/\{([^}]+)\}/g, function(match, nodeName) {
+            expr = expr.replace(/\{([^}]+)\}/g, function(match, nodeName) {
                 var nodes = graph.getAllNodes();
                 for (var i = 0; i < nodes.length; i++) {
                     if (nodes[i].properties.name === nodeName) {
@@ -296,21 +379,32 @@
 
             // Check activation based on pull/push mode
             var pullMode = target.properties.pullMode || source.properties.pullMode || 'pull';
-            var rate = conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1);
+            var rateParsed = this._parseRate(
+                conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1),
+                source
+            );
 
             if (pullMode === 'pull' && target.activated) {
-                this._transferResources(source, target, conn, rate);
+                this._transferResources(source, target, conn, rateParsed);
             } else if (pullMode === 'push' && source.activated) {
-                this._transferResources(source, target, conn, rate);
+                this._transferResources(source, target, conn, rateParsed);
             } else if (source.activated || target.activated) {
-                this._transferResources(source, target, conn, rate);
+                this._transferResources(source, target, conn, rateParsed);
             }
         }
     };
 
-    Engine.prototype._transferResources = function(source, target, conn, rate) {
+    Engine.prototype._transferResources = function(source, target, conn, rateParsed) {
+        var rate = typeof rateParsed === 'object' ? rateParsed.value : rateParsed;
+        var allOrNothing = typeof rateParsed === 'object' ? rateParsed.allOrNothing : false;
+
         if (rate <= 0) return;
+
+        // All-or-Nothing: if source doesn't have enough, transfer nothing
+        if (allOrNothing && source.type !== 'source' && source.resources < rate) return;
+
         if (!target.canAcceptResource(rate)) {
+            if (allOrNothing) return; // Can't fit all, transfer nothing
             rate = Math.max(0, (target.properties.capacity || 0) - target.resources);
             if (rate <= 0) return;
         }
@@ -336,7 +430,11 @@
             if (node.type !== 'source' || !node.activated) continue;
 
             var outConns = graph.getOutgoingConnections(node.id, 'resourceConnection');
-            var production = node.properties.production || 1;
+            var prodParsed = this._parseRate(node.properties.production || 1, node);
+            var production = prodParsed.value;
+
+            // Check interval
+            if (prodParsed.interval > 0 && !this._checkInterval(node, prodParsed.interval)) continue;
 
             for (var j = 0; j < outConns.length; j++) {
                 var conn = outConns[j];
@@ -344,8 +442,11 @@
                 var target = graph.getNode(conn.targetId);
                 if (!target) continue;
 
-                var rate = conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1);
-                var amount = Math.min(production, rate);
+                var rateParsed = this._parseRate(
+                    conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1),
+                    node
+                );
+                var amount = Math.min(production, rateParsed.value);
 
                 if (target.canAcceptResource(amount)) {
                     target.addResources(amount);
@@ -368,8 +469,13 @@
             var node = nodes[i];
             if (node.type !== 'drain' || !node.activated) continue;
 
+            var consParsed = this._parseRate(node.properties.consumption || 1, node);
+            var consumption = consParsed.value;
+
+            // Check interval
+            if (consParsed.interval > 0 && !this._checkInterval(node, consParsed.interval)) continue;
+
             var inConns = graph.getIncomingConnections(node.id, 'resourceConnection');
-            var consumption = node.properties.consumption || 1;
 
             for (var j = 0; j < inConns.length; j++) {
                 var conn = inConns[j];
@@ -377,10 +483,16 @@
                 var source = graph.getNode(conn.sourceId);
                 if (!source) continue;
 
-                var rate = conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1);
-                var amount = Math.min(consumption, rate);
-                var removed = source.removeResources(amount);
+                var rateParsed = this._parseRate(
+                    conn.currentRate !== undefined ? conn.currentRate : (conn.properties.rate || 1),
+                    node
+                );
+                var amount = Math.min(consumption, rateParsed.value);
 
+                // All-or-Nothing check
+                if (rateParsed.allOrNothing && source.resources < amount) continue;
+
+                var removed = source.removeResources(amount);
                 if (removed > 0) {
                     this.resourceFlows.push({
                         connectionId: conn.id,
@@ -536,6 +648,37 @@
                             targetId: target.id
                         });
                     }
+                }
+            }
+        }
+    };
+
+    Engine.prototype._updateCharts = function() {
+        var graph = this.graph;
+        var nodes = graph.getAllNodes();
+
+        for (var i = 0; i < nodes.length; i++) {
+            var node = nodes[i];
+            if (node.type !== 'chart') continue;
+
+            // Collect values from all incoming state connections
+            var inConns = graph.getIncomingConnections(node.id, 'stateConnection');
+            for (var j = 0; j < inConns.length; j++) {
+                var conn = inConns[j];
+                var source = graph.getNode(conn.sourceId);
+                if (!source) continue;
+
+                var name = source.properties.name || source.id;
+                if (!node.chartData[name]) {
+                    node.chartData[name] = [];
+                }
+                var value = this._getNodeValue(source);
+                node.chartData[name].push(value);
+
+                // Limit data points
+                var max = node.properties.maxDataPoints || 100;
+                if (node.chartData[name].length > max) {
+                    node.chartData[name].shift();
                 }
             }
         }

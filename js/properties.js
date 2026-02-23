@@ -45,12 +45,12 @@
                 break;
 
             case 'source':
-                html += this._numberField('生産量', 'production', node.properties.production || 1);
+                html += '<div class="prop-group"><label>生産量</label><input type="text" data-prop="production" value="' + this._esc(String(node.properties.production || 1)) + '" placeholder="例: 1, D6, /3"></div>';
                 html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
                 break;
 
             case 'drain':
-                html += this._numberField('消費量', 'consumption', node.properties.consumption || 1);
+                html += '<div class="prop-group"><label>消費量</label><input type="text" data-prop="consumption" value="' + this._esc(String(node.properties.consumption || 1)) + '" placeholder="例: 1, D6, &2"></div>';
                 html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
                 break;
 
@@ -82,6 +82,17 @@
             case 'endCondition':
                 html += '<div class="prop-group"><label>条件</label><textarea data-prop="condition" placeholder="例: {プール1} >= 100">' + this._esc(node.properties.condition || '') + '</textarea></div>';
                 break;
+
+            case 'chart':
+                html += this._numberField('最大データ点', 'maxDataPoints', node.properties.maxDataPoints || 100);
+                // Show tracked series info
+                if (node.chartData) {
+                    var series = Object.keys(node.chartData);
+                    if (series.length > 0) {
+                        html += '<div class="prop-group"><label>記録中</label><input type="text" value="' + this._esc(series.join(', ')) + '" readonly style="opacity:0.7"></div>';
+                    }
+                }
+                break;
         }
 
         // Position
@@ -103,7 +114,7 @@
         html += '<div class="prop-group"><label>ID</label><input type="text" value="' + conn.id + '" readonly style="opacity:0.5"></div>';
 
         if (conn.type === 'resourceConnection') {
-            html += this._numberField('レート', 'rate', conn.properties.rate || 1);
+            html += '<div class="prop-group"><label>レート</label><input type="text" data-prop="rate" value="' + this._esc(String(conn.properties.rate || 1)) + '" placeholder="例: 1, D6, &3, /2"></div>';
             html += '<div class="prop-group"><label>ラベル</label><input type="text" data-prop="label" value="' + this._esc(conn.properties.label || '') + '"></div>';
         } else if (conn.type === 'stateConnection') {
             html += this._selectField('サブタイプ', 'stateType', conn.properties.stateType || 'labelModifier', M.STATE_CONNECTION_TYPES);
@@ -182,10 +193,18 @@
             return;
         }
 
-        // Convert number values
+        // Convert number values (but not for rate/production/consumption which accept dice notation)
+        var textRateProps = ['rate', 'production', 'consumption'];
         if (input.type === 'number') {
             value = parseFloat(value);
             if (isNaN(value)) value = 0;
+        } else if (textRateProps.indexOf(prop) !== -1) {
+            // Keep as string if it contains non-numeric characters (dice, interval, etc.)
+            var numVal = parseFloat(value);
+            if (!isNaN(numVal) && String(numVal) === value.trim()) {
+                value = numVal;
+            }
+            // Otherwise keep as string (e.g., "D6", "&3", "/2")
         }
 
         this._currentElement.properties[prop] = value;

@@ -99,6 +99,16 @@ window.Machinations = window.Machinations || {};
             defaults: {
                 condition: ''
             }
+        },
+        chart: {
+            name: 'チャート',
+            shape: 'chartRect',
+            fill: '#e3f2fd',
+            stroke: '#1976d2',
+            defaults: {
+                maxDataPoints: 100,
+                activationMode: 'passive'
+            }
         }
     };
 
@@ -177,6 +187,12 @@ window.Machinations = window.Machinations || {};
         this.resources = this.properties.startValue || 0;
         this.activated = false;
         this.fired = false;
+        this._intervalCounter = 0; // for interval notation (/N)
+
+        // Chart node data
+        if (this.type === 'chart') {
+            this.chartData = {}; // { "NodeName": [values...] }
+        }
     }
 
     Node.prototype.getTypeDef = function() {
@@ -368,6 +384,10 @@ window.Machinations = window.Machinations || {};
             node.resources = node.properties.startValue || 0;
             node.activated = false;
             node.fired = false;
+            node._intervalCounter = 0;
+            if (node.type === 'chart') {
+                node.chartData = {};
+            }
         }
         for (var cid in this.connections) {
             var conn = this.connections[cid];
