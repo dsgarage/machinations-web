@@ -472,22 +472,38 @@
         };
     };
 
-    Renderer.prototype._calcBezierPath = function(sx, sy, tx, ty) {
+    Renderer.prototype._calcBezierControlPoints = function(sx, sy, tx, ty) {
         var dx = tx - sx;
         var dy = ty - sy;
         var dist = Math.sqrt(dx * dx + dy * dy);
         var curvature = Math.min(dist * 0.2, 50);
 
-        // Simple straight line with slight curve
-        var mx = (sx + tx) / 2;
-        var my = (sy + ty) / 2;
-
-        // Add slight perpendicular offset for curves
+        var cp1x, cp1y, cp2x, cp2y;
         if (Math.abs(dx) > Math.abs(dy)) {
-            return 'M' + sx + ',' + sy + ' C' + (sx + curvature) + ',' + sy + ' ' + (tx - curvature) + ',' + ty + ' ' + tx + ',' + ty;
+            cp1x = sx + curvature; cp1y = sy;
+            cp2x = tx - curvature; cp2y = ty;
         } else {
-            return 'M' + sx + ',' + sy + ' C' + sx + ',' + (sy + curvature) + ' ' + tx + ',' + (ty - curvature) + ' ' + tx + ',' + ty;
+            cp1x = sx; cp1y = sy + curvature;
+            cp2x = tx; cp2y = ty - curvature;
         }
+        return { p0x: sx, p0y: sy, p1x: cp1x, p1y: cp1y, p2x: cp2x, p2y: cp2y, p3x: tx, p3y: ty };
+    };
+
+    Renderer.prototype._calcBezierPath = function(sx, sy, tx, ty) {
+        var b = this._calcBezierControlPoints(sx, sy, tx, ty);
+        return 'M' + b.p0x + ',' + b.p0y + ' C' + b.p1x + ',' + b.p1y + ' ' + b.p2x + ',' + b.p2y + ' ' + b.p3x + ',' + b.p3y;
+    };
+
+    Renderer.prototype._evalBezier = function(b, t) {
+        var u = 1 - t;
+        var uu = u * u;
+        var uuu = uu * u;
+        var tt = t * t;
+        var ttt = tt * t;
+        return {
+            x: uuu * b.p0x + 3 * uu * t * b.p1x + 3 * u * tt * b.p2x + ttt * b.p3x,
+            y: uuu * b.p0y + 3 * uu * t * b.p1y + 3 * u * tt * b.p2y + ttt * b.p3y
+        };
     };
 
     // ===== Temp Connection (while creating) =====
@@ -680,8 +696,8 @@
     // ===== Animation =====
 
     Renderer.prototype.animateResourceFlow = function(flow) {
-        // Limit concurrent animation tokens to avoid DOM thrashing
-        if (this._animationTokens.length >= 20) return;
+        // Limit concurrent animation tokens
+        if (this._animationTokens.length >= 60) return;
 
         var conn = this.graph.getConnection(flow.connectionId);
         if (!conn) return;
@@ -691,33 +707,57 @@
         if (!source || !target) return;
 
         var points = this._calcConnectionPoints(source, target);
+        var bezier = this._calcBezierControlPoints(points.sx, points.sy, points.tx, points.ty);
+
+        // Show tokens matching actual amount (cap at 12)
+        var count = Math.min(Math.max(1, Math.round(flow.amount)), 12);
+        var duration = 450;
+        var stagger = 50;
+        var self = this;
+
+        for (var i = 0; i < count; i++) {
+            (function(idx) {
+                setTimeout(function() {
+                    self._launchToken(bezier, duration, points.tx, points.ty);
+                }, idx * stagger);
+            })(i);
+        }
+    };
+
+    Renderer.prototype._launchToken = function(bezier, duration, endX, endY) {
+        if (this._animationTokens.length >= 60) return;
 
         var token = this._createSVG('circle', {
             'class': 'resource-token',
-            'r': 4,
-            'cx': points.sx,
-            'cy': points.sy
+            'r': 3.5,
+            'cx': bezier.p0x,
+            'cy': bezier.p0y
         });
         this.animationsLayer.appendChild(token);
         this._animationTokens.push(token);
 
-        // Animate along the path
-        var duration = 300;
         var startTime = performance.now();
         var self = this;
 
         function animate(time) {
             var t = Math.min(1, (time - startTime) / duration);
-            var ease = t * (2 - t); // easeOut
-            var cx = points.sx + (points.tx - points.sx) * ease;
-            var cy = points.sy + (points.ty - points.sy) * ease;
-            token.setAttribute('cx', cx);
-            token.setAttribute('cy', cy);
-            token.setAttribute('opacity', 1 - t * 0.5);
+            // Ease in-out cubic
+            var ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+            var pt = self._evalBezier(bezier, ease);
+            token.setAttribute('cx', pt.x);
+            token.setAttribute('cy', pt.y);
+
+            // Scale: grow slightly mid-flight, shrink near end
+            var scale = 1 + 0.3 * Math.sin(t * Math.PI);
+            token.setAttribute('r', 3.5 * scale);
+            token.setAttribute('opacity', t < 0.9 ? 1 : 1 - (t - 0.9) / 0.1);
 
             if (t < 1) {
                 requestAnimationFrame(animate);
             } else {
+                // Arrival burst effect
+                self._burstEffect(endX, endY);
                 if (token.parentNode) {
                     token.parentNode.removeChild(token);
                 }
@@ -727,6 +767,37 @@
         }
 
         requestAnimationFrame(animate);
+    };
+
+    Renderer.prototype._burstEffect = function(x, y) {
+        var ring = this._createSVG('circle', {
+            'class': 'burst-ring',
+            'cx': x, 'cy': y, 'r': 3,
+            'fill': 'none',
+            'stroke': '#ff9800',
+            'stroke-width': 1.5,
+            'opacity': 0.8
+        });
+        this.animationsLayer.appendChild(ring);
+
+        var startTime = performance.now();
+        var dur = 250;
+
+        function anim(time) {
+            var t = Math.min(1, (time - startTime) / dur);
+            var r = 3 + 9 * t;
+            ring.setAttribute('r', r);
+            ring.setAttribute('opacity', 0.8 * (1 - t));
+            ring.setAttribute('stroke-width', 1.5 * (1 - t));
+
+            if (t < 1) {
+                requestAnimationFrame(anim);
+            } else {
+                if (ring.parentNode) ring.parentNode.removeChild(ring);
+            }
+        }
+
+        requestAnimationFrame(anim);
     };
 
     Renderer.prototype.pulseNode = function(nodeId) {
