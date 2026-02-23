@@ -91,23 +91,28 @@
             self.redo();
         });
 
-        // Samples
+        // Sample modal
         var samplesBtn = document.getElementById('btn-samples');
-        var sampleMenu = document.getElementById('sample-menu');
-        samplesBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            sampleMenu.classList.toggle('open');
+        var sampleModal = document.getElementById('sample-modal');
+        var modalClose = document.getElementById('modal-close');
+
+        samplesBtn.addEventListener('click', function() {
+            sampleModal.style.display = 'flex';
         });
-        document.addEventListener('click', function() {
-            sampleMenu.classList.remove('open');
+        modalClose.addEventListener('click', function() {
+            sampleModal.style.display = 'none';
+        });
+        sampleModal.addEventListener('click', function(e) {
+            if (e.target === sampleModal) sampleModal.style.display = 'none';
         });
 
-        var sampleButtons = sampleMenu.querySelectorAll('button');
-        for (var i = 0; i < sampleButtons.length; i++) {
-            sampleButtons[i].addEventListener('click', function(e) {
-                var sampleName = e.target.getAttribute('data-sample');
+        var sampleCards = sampleModal.querySelectorAll('.sample-card');
+        for (var i = 0; i < sampleCards.length; i++) {
+            sampleCards[i].addEventListener('click', function(e) {
+                var card = e.target.closest('.sample-card');
+                var sampleName = card.getAttribute('data-sample');
                 self.io.loadSample(sampleName);
-                sampleMenu.classList.remove('open');
+                sampleModal.style.display = 'none';
             });
         }
 
@@ -121,25 +126,24 @@
         var self = this;
 
         this.engine.onStep = function(stepCount, flows) {
-            // Update node display
-            var nodes = self.graph.getAllNodes();
-            for (var i = 0; i < nodes.length; i++) {
-                self.renderer.updateNode(nodes[i]);
-            }
+            requestAnimationFrame(function() {
+                // Batch update: all nodes in one frame
+                var nodes = self.graph.getAllNodes();
+                for (var i = 0; i < nodes.length; i++) {
+                    self.renderer.updateNode(nodes[i]);
+                }
 
-            // Animate resource flows
-            for (var j = 0; j < flows.length; j++) {
-                self.renderer.animateResourceFlow(flows[j]);
+                // Animate resource flows (limited)
+                for (var j = 0; j < flows.length; j++) {
+                    self.renderer.animateResourceFlow(flows[j]);
+                }
 
-                // Pulse target nodes
-                self.renderer.pulseNode(flows[j].targetId);
-            }
+                // Update status
+                self.updateStatus();
 
-            // Update status
-            self.updateStatus();
-
-            // Refresh properties panel
-            self.propertiesPanel.refresh();
+                // Refresh properties panel
+                self.propertiesPanel.refresh();
+            });
         };
 
         this.engine.onEnd = function(stepCount) {
