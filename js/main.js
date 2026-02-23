@@ -486,8 +486,9 @@
                 return;
             }
 
-            // トークン取得（なければ入力を求める）
-            var token = localStorage.getItem('machinations_github_token');
+            // トークン取得: 1) ビルド注入 2) localStorage 3) 手動入力
+            var token = window.__FEEDBACK_TOKEN__
+                || localStorage.getItem('machinations_github_token');
             if (!token) {
                 token = prompt(
                     'GitHub Personal Access Token を入力してください\n\n'
