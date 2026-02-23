@@ -711,21 +711,22 @@
 
         // Show tokens matching actual amount (cap at 12)
         var count = Math.min(Math.max(1, Math.round(flow.amount)), 12);
-        var duration = 450;
-        var stagger = 50;
+        var duration = 500;
         var self = this;
 
+        // Launch all tokens at once, each with a slight offset along the curve
         for (var i = 0; i < count; i++) {
-            (function(idx) {
-                setTimeout(function() {
-                    self._launchToken(bezier, duration, points.tx, points.ty);
-                }, idx * stagger);
-            })(i);
+            self._launchToken(bezier, duration, points.tx, points.ty, i, count);
         }
     };
 
-    Renderer.prototype._launchToken = function(bezier, duration, endX, endY) {
+    Renderer.prototype._launchToken = function(bezier, duration, endX, endY, index, total) {
         if (this._animationTokens.length >= 60) return;
+
+        // Cluster offset: tokens start slightly behind each other on the curve
+        // This creates a "packet" effect rather than a spread-out trail
+        var clusterSpread = 0.06; // 6% of curve length for the whole group
+        var offset = (total > 1) ? (index / (total - 1)) * clusterSpread : 0;
 
         var token = this._createSVG('circle', {
             'class': 'resource-token',
@@ -738,26 +739,32 @@
 
         var startTime = performance.now();
         var self = this;
+        var isLast = (index === total - 1);
 
         function animate(time) {
             var t = Math.min(1, (time - startTime) / duration);
             // Ease in-out cubic
             var ease = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-            var pt = self._evalBezier(bezier, ease);
+            // Apply cluster offset: later tokens trail slightly behind
+            var curveT = Math.max(0, Math.min(1, ease - offset + offset * ease));
+
+            var pt = self._evalBezier(bezier, curveT);
             token.setAttribute('cx', pt.x);
             token.setAttribute('cy', pt.y);
 
-            // Scale: grow slightly mid-flight, shrink near end
-            var scale = 1 + 0.3 * Math.sin(t * Math.PI);
+            // Scale: grow slightly mid-flight
+            var scale = 1 + 0.2 * Math.sin(t * Math.PI);
             token.setAttribute('r', 3.5 * scale);
-            token.setAttribute('opacity', t < 0.9 ? 1 : 1 - (t - 0.9) / 0.1);
+            token.setAttribute('opacity', t < 0.85 ? 1 : 1 - (t - 0.85) / 0.15);
 
             if (t < 1) {
                 requestAnimationFrame(animate);
             } else {
-                // Arrival burst effect
-                self._burstEffect(endX, endY);
+                // Only the last token in cluster triggers burst
+                if (isLast) {
+                    self._burstEffect(endX, endY, total);
+                }
                 if (token.parentNode) {
                     token.parentNode.removeChild(token);
                 }
@@ -769,26 +776,28 @@
         requestAnimationFrame(animate);
     };
 
-    Renderer.prototype._burstEffect = function(x, y) {
+    Renderer.prototype._burstEffect = function(x, y, count) {
+        // Scale burst size with token count
+        var maxR = 6 + Math.min(count || 1, 8) * 1.5;
         var ring = this._createSVG('circle', {
             'class': 'burst-ring',
             'cx': x, 'cy': y, 'r': 3,
             'fill': 'none',
             'stroke': '#ff9800',
-            'stroke-width': 1.5,
-            'opacity': 0.8
+            'stroke-width': 2,
+            'opacity': 0.9
         });
         this.animationsLayer.appendChild(ring);
 
         var startTime = performance.now();
-        var dur = 250;
+        var dur = 300;
 
         function anim(time) {
             var t = Math.min(1, (time - startTime) / dur);
-            var r = 3 + 9 * t;
+            var r = 3 + maxR * t;
             ring.setAttribute('r', r);
-            ring.setAttribute('opacity', 0.8 * (1 - t));
-            ring.setAttribute('stroke-width', 1.5 * (1 - t));
+            ring.setAttribute('opacity', 0.9 * (1 - t));
+            ring.setAttribute('stroke-width', 2 * (1 - t));
 
             if (t < 1) {
                 requestAnimationFrame(anim);
