@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Machinations シミュレーター</title>
+    <title>Machinations</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -11,156 +11,151 @@
         <!-- ヘッダー -->
         <header id="header">
             <div class="header-left">
-                <h1>Machinations シミュレーター</h1>
+                <svg class="header-logo" viewBox="0 0 28 28" width="24" height="24">
+                    <circle cx="14" cy="14" r="12" fill="none" stroke="currentColor" stroke-width="2.2"/>
+                    <circle cx="14" cy="14" r="5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+                    <line x1="14" y1="2" x2="14" y2="9" stroke="currentColor" stroke-width="1.5"/>
+                    <line x1="14" y1="19" x2="14" y2="26" stroke="currentColor" stroke-width="1.5"/>
+                    <line x1="2" y1="14" x2="9" y2="14" stroke="currentColor" stroke-width="1.5"/>
+                    <line x1="19" y1="14" x2="26" y2="14" stroke="currentColor" stroke-width="1.5"/>
+                </svg>
+                <h1>Machinations</h1>
             </div>
             <div class="header-center">
-                <button id="btn-new" title="新規ダイアグラム (Ctrl+N)">新規</button>
-                <button id="btn-save" title="保存 (Ctrl+S)">保存</button>
-                <button id="btn-load" title="読込">読込</button>
-                <input type="file" id="file-input" accept=".json" style="display:none">
+                <div class="header-group">
+                    <button id="btn-new" class="header-btn" title="新規ダイアグラム (Ctrl+N)">
+                        <svg viewBox="0 0 20 20" width="16" height="16"><path d="M4 2h8l4 4v12H4V2z" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="7" y1="11" x2="13" y2="11" stroke="currentColor" stroke-width="1.5"/><line x1="10" y1="8" x2="10" y2="14" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <span>新規</span>
+                    </button>
+                    <button id="btn-save" class="header-btn" title="保存 (Ctrl+S)">
+                        <svg viewBox="0 0 20 20" width="16" height="16"><path d="M3 3h11l3 3v11H3V3z" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="6" y="3" width="7" height="5" fill="none" stroke="currentColor" stroke-width="1"/><rect x="5" y="12" width="10" height="5" fill="none" stroke="currentColor" stroke-width="1"/></svg>
+                        <span>保存</span>
+                    </button>
+                    <button id="btn-load" class="header-btn" title="読込">
+                        <svg viewBox="0 0 20 20" width="16" height="16"><path d="M2 6h5l2-3h7v14H2V6z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+                        <span>読込</span>
+                    </button>
+                    <input type="file" id="file-input" accept=".json" style="display:none">
+                </div>
                 <span class="separator"></span>
-                <button id="btn-run" title="実行 (Space)" class="sim-btn">&#9654; 実行</button>
-                <button id="btn-stop" title="停止 (Space)" class="sim-btn" disabled>&#9724; 停止</button>
-                <button id="btn-step" title="ステップ (S)" class="sim-btn">&#9197; ステップ</button>
-                <button id="btn-reset" title="リセット (R)" class="sim-btn">&#10226; リセット</button>
-                <button id="btn-quickrun" title="高速実行" class="sim-btn">&#9889; 高速</button>
-                <button id="btn-multirun" title="モンテカルロ" class="sim-btn">&#128202; 統計</button>
+                <div class="header-group">
+                    <button id="btn-undo" class="header-btn icon-only" title="元に戻す (Ctrl+Z)">
+                        <svg viewBox="0 0 20 20" width="16" height="16"><path d="M5 8l-3 3 3 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 11h11a4 4 0 010 8H9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    </button>
+                    <button id="btn-redo" class="header-btn icon-only" title="やり直し (Ctrl+Y)">
+                        <svg viewBox="0 0 20 20" width="16" height="16"><path d="M15 8l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M18 11H7a4 4 0 000 8h4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    </button>
+                </div>
                 <span class="separator"></span>
-                <label class="speed-label">速度:
-                    <input type="range" id="speed-slider" min="1" max="20" value="5" title="シミュレーション速度">
-                    <span id="speed-value">5</span>
-                </label>
-                <span class="separator"></span>
-                <button id="btn-undo" title="元に戻す (Ctrl+Z)">↩</button>
-                <button id="btn-redo" title="やり直し (Ctrl+Y)">↪</button>
-                <span class="separator"></span>
-                <button id="btn-samples">サンプル ▼</button>
-                <span class="separator"></span>
-                <button id="btn-theme" title="テーマ切替">🌙</button>
+                <div class="header-group">
+                    <button id="btn-samples" class="header-btn" title="サンプルダイアグラム">
+                        <svg viewBox="0 0 20 20" width="16" height="16"><rect x="3" y="3" width="14" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.5"/><line x1="3" y1="8" x2="17" y2="8" stroke="currentColor" stroke-width="1"/><line x1="10" y1="8" x2="10" y2="17" stroke="currentColor" stroke-width="1"/></svg>
+                        <span>サンプル</span>
+                    </button>
+                </div>
+            </div>
+            <div class="header-right">
+                <button id="btn-theme" class="header-btn icon-only" title="テーマ切替">&#127769;</button>
             </div>
         </header>
 
         <!-- メインコンテンツ -->
         <div id="main-content">
-            <!-- ツールバー -->
-            <aside id="toolbar">
-                <div class="tool-section">
-                    <h3>ツール</h3>
+            <div class="main-workspace">
+                <!-- 水平ツールバー -->
+                <div id="toolbar">
                     <button class="tool-btn active" data-tool="select" title="選択ツール (1)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="currentColor"/></svg>
-                        <span>選択</span>
                     </button>
-                </div>
-                <div class="tool-section">
-                    <h3>ノード</h3>
+                    <span class="toolbar-sep"></span>
                     <button class="tool-btn" data-tool="pool" title="プール (2)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                        <span>プール</span>
                     </button>
                     <button class="tool-btn" data-tool="source" title="ソース (3)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,2 22,22 2,22" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                        <span>ソース</span>
                     </button>
                     <button class="tool-btn" data-tool="drain" title="ドレイン (4)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,22 22,2 2,2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                        <span>ドレイン</span>
                     </button>
                     <button class="tool-btn" data-tool="converter" title="コンバーター (5)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="2,12 12,2 22,12 12,22" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(45 12 12)"/></svg>
-                        <span>コンバーター</span>
                     </button>
                     <button class="tool-btn" data-tool="gate" title="ゲート (6)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,2 22,12 12,22 2,12" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                        <span>ゲート</span>
                     </button>
                     <button class="tool-btn" data-tool="trader" title="トレーダー (7)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><polygon points="12,2 15,9 22,9 16,14 18,22 12,17 6,22 8,14 2,9 9,9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                        <span>トレーダー</span>
                     </button>
                     <button class="tool-btn" data-tool="register" title="レジスター (8)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="5" width="18" height="14" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                        <span>レジスター</span>
                     </button>
                     <button class="tool-btn" data-tool="endCondition" title="エンドコンディション (9)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                        <span>エンド</span>
                     </button>
                     <button class="tool-btn" data-tool="chart" title="チャート (0)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><rect x="2" y="2" width="20" height="20" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><polyline points="5,18 9,10 13,14 17,6 21,8" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-                        <span>チャート</span>
                     </button>
                     <button class="tool-btn" data-tool="delay" title="ディレイ (D)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="16" y1="7" x2="16" y2="17" stroke="currentColor" stroke-width="1.5"/></svg>
-                        <span>ディレイ</span>
                     </button>
                     <button class="tool-btn" data-tool="queue" title="キュー (Q)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="5" width="18" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><line x1="8" y1="7" x2="8" y2="17" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="12" y1="7" x2="12" y2="17" stroke="currentColor" stroke-width="1" opacity="0.4"/><line x1="16" y1="7" x2="16" y2="17" stroke="currentColor" stroke-width="1" opacity="0.4"/></svg>
-                        <span>キュー</span>
                     </button>
-                </div>
-                <div class="tool-section">
-                    <h3>接続</h3>
+                    <span class="toolbar-sep"></span>
                     <button class="tool-btn" data-tool="resourceConnection" title="リソース接続 (R)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><line x1="2" y1="12" x2="18" y2="12" stroke="currentColor" stroke-width="2"/><polygon points="18,8 24,12 18,16" fill="currentColor"/></svg>
-                        <span>接続</span>
                     </button>
                     <button class="tool-btn" data-tool="stateConnection" title="状態接続 (T)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><line x1="2" y1="12" x2="18" y2="12" stroke="currentColor" stroke-width="2" stroke-dasharray="4,3"/><polygon points="18,8 24,12 18,16" fill="currentColor"/></svg>
-                        <span>状態接続</span>
                     </button>
-                </div>
-                <div class="tool-section">
-                    <h3>操作</h3>
+                    <span class="toolbar-sep"></span>
                     <button class="tool-btn" data-tool="textLabel" title="テキストラベル">
                         <svg viewBox="0 0 24 24" width="20" height="20"><text x="12" y="17" text-anchor="middle" font-size="14" font-weight="bold" fill="currentColor">T</text></svg>
-                        <span>テキスト</span>
                     </button>
                     <button class="tool-btn" data-tool="group" title="グループ">
                         <svg viewBox="0 0 24 24" width="20" height="20"><rect x="3" y="3" width="18" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="4,2"/></svg>
-                        <span>グループ</span>
                     </button>
                     <button class="tool-btn" data-tool="delete" title="削除 (Del)">
                         <svg viewBox="0 0 24 24" width="20" height="20"><line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2"/><line x1="20" y1="4" x2="4" y2="20" stroke="currentColor" stroke-width="2"/></svg>
-                        <span>削除</span>
                     </button>
                 </div>
-            </aside>
 
-            <!-- SVGキャンバス -->
-            <main id="canvas-container">
-                <div id="minimap">
-                    <canvas id="minimap-canvas" width="180" height="120"></canvas>
-                </div>
-                <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
-                    <defs>
-                        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
-                        </marker>
-                        <marker id="arrowhead-dark" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="#ccc"/>
-                        </marker>
-                        <marker id="arrowhead-state" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
-                        </marker>
-                        <marker id="arrowhead-state-dark" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-                            <polygon points="0 0, 10 3.5, 0 7" fill="#999"/>
-                        </marker>
-                        <marker id="trigger-marker" markerWidth="12" markerHeight="12" refX="6" refY="6" orient="auto">
-                            <path d="M3,2 L6,10 L9,2" fill="none" stroke="#ff9800" stroke-width="2"/>
-                        </marker>
-                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                            <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="0.5" class="grid-line"/>
-                        </pattern>
-                    </defs>
-                    <rect id="grid-bg" width="100%" height="100%" fill="url(#grid)"/>
-                    <g id="canvas-group">
-                        <g id="connections-layer"></g>
-                        <g id="animations-layer"></g>
-                        <g id="nodes-layer"></g>
-                    </g>
-                    <g id="temp-connection" style="pointer-events:none"></g>
-                </svg>
-            </main>
+                <!-- SVGキャンバス -->
+                <main id="canvas-container">
+                    <div id="minimap">
+                        <canvas id="minimap-canvas" width="180" height="120"></canvas>
+                    </div>
+                    <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#333"/>
+                            </marker>
+                            <marker id="arrowhead-dark" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#ccc"/>
+                            </marker>
+                            <marker id="arrowhead-state" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#666"/>
+                            </marker>
+                            <marker id="arrowhead-state-dark" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill="#999"/>
+                            </marker>
+                            <marker id="trigger-marker" markerWidth="12" markerHeight="12" refX="6" refY="6" orient="auto">
+                                <path d="M3,2 L6,10 L9,2" fill="none" stroke="#ff9800" stroke-width="2"/>
+                            </marker>
+                            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#e0e0e0" stroke-width="0.3" opacity="0.5" class="grid-line"/>
+                            </pattern>
+                        </defs>
+                        <rect id="grid-bg" width="100%" height="100%" fill="url(#grid)"/>
+                        <g id="canvas-group">
+                            <g id="connections-layer"></g>
+                            <g id="animations-layer"></g>
+                            <g id="nodes-layer"></g>
+                        </g>
+                        <g id="temp-connection" style="pointer-events:none"></g>
+                    </svg>
+                </main>
+            </div>
 
             <!-- プロパティパネル -->
             <aside id="properties-panel">
@@ -182,6 +177,27 @@
                     <thead id="chart-thead"><tr></tr></thead>
                     <tbody id="chart-tbody"></tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- シミュレーションバー -->
+        <div id="sim-bar">
+            <div class="sim-bar-left">
+                <button id="btn-run" class="sim-btn sim-btn-run" title="実行 (Space)">&#9654; 実行</button>
+                <button id="btn-step" class="sim-btn sim-btn-step" title="ステップ (S)">&#9197; ステップ</button>
+                <button id="btn-stop" class="sim-btn sim-btn-stop" title="停止 (Space)" disabled>&#9724; 停止</button>
+                <button id="btn-reset" class="sim-btn sim-btn-reset" title="リセット (R)">&#10226; リセット</button>
+            </div>
+            <div class="sim-bar-center">
+                <label class="speed-label">
+                    <svg viewBox="0 0 20 20" width="14" height="14"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zm0 2v6l4 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    <input type="range" id="speed-slider" min="1" max="20" value="5" title="シミュレーション速度">
+                    <span id="speed-value">5</span>
+                </label>
+            </div>
+            <div class="sim-bar-right">
+                <button id="btn-quickrun" class="sim-btn sim-btn-quick" title="高速実行">&#9889; 高速</button>
+                <button id="btn-multirun" class="sim-btn sim-btn-stats" title="モンテカルロ">&#128202; 統計</button>
             </div>
         </div>
 
