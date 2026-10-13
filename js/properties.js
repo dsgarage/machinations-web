@@ -15,7 +15,7 @@
     }
 
     PropertiesPanel.prototype.clear = function() {
-        this.content.innerHTML = '<p class="placeholder">要素を選択してください</p>';
+        this.content.innerHTML = '<p class="placeholder">' + M.t('props.placeholder') + '</p>';
         this._currentElement = null;
         this._currentType = null;
     };
@@ -24,96 +24,97 @@
         this._currentElement = node;
         this._currentType = 'node';
         var html = '';
+        var t = M.t;
 
         // Type badge
         var typeDef = node.getTypeDef();
         html += '<div class="prop-type prop-type-' + node.type + '">' + typeDef.name + '</div>';
 
         // ID
-        html += '<div class="prop-group"><label>ID</label><input type="text" value="' + node.id + '" readonly style="opacity:0.5"></div>';
+        html += '<div class="prop-group"><label>' + t('props.id') + '</label><input type="text" value="' + node.id + '" readonly style="opacity:0.5"></div>';
 
         // Name
-        html += '<div class="prop-group"><label>名前</label><input type="text" data-prop="name" value="' + this._esc(node.properties.name || '') + '"></div>';
+        html += '<div class="prop-group"><label>' + t('props.name') + '</label><input type="text" data-prop="name" value="' + this._esc(node.properties.name || '') + '"></div>';
 
         // Type-specific properties
         switch (node.type) {
             case 'pool':
-                html += this._numberField('初期値', 'startValue', node.properties.startValue || 0);
-                html += this._numberField('容量 (-1=無限)', 'capacity', node.properties.capacity);
-                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
-                html += this._selectField('プル/プッシュ', 'pullMode', node.properties.pullMode, M.PULL_MODES);
+                html += this._numberField(t('props.startValue'), 'startValue', node.properties.startValue || 0);
+                html += this._numberField(t('props.capacity'), 'capacity', node.properties.capacity);
+                html += this._selectField(t('props.activation'), 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                html += this._selectField(t('props.pullPush'), 'pullMode', node.properties.pullMode, M.PULL_MODES);
                 break;
 
             case 'source':
-                html += '<div class="prop-group"><label>生産量</label><input type="text" data-prop="production" value="' + this._esc(String(node.properties.production || 1)) + '" placeholder="例: 1, D6, /3"></div>';
-                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
-                html += '<div class="prop-group"><label>リソース色</label><select data-prop="resourceColor">';
-                html += '<option value="default">デフォルト</option>';
-                html += '<option value="#ff9800"' + (node.properties.resourceColor === '#ff9800' ? ' selected' : '') + '>オレンジ</option>';
-                html += '<option value="#2196f3"' + (node.properties.resourceColor === '#2196f3' ? ' selected' : '') + '>ブルー</option>';
-                html += '<option value="#4caf50"' + (node.properties.resourceColor === '#4caf50' ? ' selected' : '') + '>グリーン</option>';
-                html += '<option value="#f44336"' + (node.properties.resourceColor === '#f44336' ? ' selected' : '') + '>レッド</option>';
-                html += '<option value="#9c27b0"' + (node.properties.resourceColor === '#9c27b0' ? ' selected' : '') + '>パープル</option>';
+                html += '<div class="prop-group"><label>' + t('props.production') + '</label><input type="text" data-prop="production" value="' + this._esc(String(node.properties.production || 1)) + '" placeholder="' + this._esc(t('props.production.placeholder')) + '"></div>';
+                html += this._selectField(t('props.activation'), 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                html += '<div class="prop-group"><label>' + t('props.resourceColor') + '</label><select data-prop="resourceColor">';
+                html += '<option value="default">' + t('props.color.default') + '</option>';
+                html += '<option value="#ff9800"' + (node.properties.resourceColor === '#ff9800' ? ' selected' : '') + '>' + t('props.color.orange') + '</option>';
+                html += '<option value="#2196f3"' + (node.properties.resourceColor === '#2196f3' ? ' selected' : '') + '>' + t('props.color.blue') + '</option>';
+                html += '<option value="#4caf50"' + (node.properties.resourceColor === '#4caf50' ? ' selected' : '') + '>' + t('props.color.green') + '</option>';
+                html += '<option value="#f44336"' + (node.properties.resourceColor === '#f44336' ? ' selected' : '') + '>' + t('props.color.red') + '</option>';
+                html += '<option value="#9c27b0"' + (node.properties.resourceColor === '#9c27b0' ? ' selected' : '') + '>' + t('props.color.purple') + '</option>';
                 html += '</select></div>';
                 break;
 
             case 'drain':
-                html += '<div class="prop-group"><label>消費量</label><input type="text" data-prop="consumption" value="' + this._esc(String(node.properties.consumption || 1)) + '" placeholder="例: 1, D6, &2"></div>';
-                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                html += '<div class="prop-group"><label>' + t('props.consumption') + '</label><input type="text" data-prop="consumption" value="' + this._esc(String(node.properties.consumption || 1)) + '" placeholder="' + this._esc(t('props.consumption.placeholder')) + '"></div>';
+                html += this._selectField(t('props.activation'), 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
                 break;
 
             case 'converter':
-                html += this._numberField('入力レート', 'inputRate', node.properties.inputRate || 1);
-                html += this._numberField('出力レート', 'outputRate', node.properties.outputRate || 1);
-                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                html += this._numberField(t('props.inputRate'), 'inputRate', node.properties.inputRate || 1);
+                html += this._numberField(t('props.outputRate'), 'outputRate', node.properties.outputRate || 1);
+                html += this._selectField(t('props.activation'), 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
                 break;
 
             case 'gate':
-                html += this._selectField('ゲートタイプ', 'gateType', node.properties.gateType, {
-                    probabilistic: { name: '確率的' },
-                    deterministic: { name: '決定的' }
+                html += this._selectField(t('props.gateType'), 'gateType', node.properties.gateType, {
+                    probabilistic: { name: t('props.gate.probabilistic') },
+                    deterministic: { name: t('props.gate.deterministic') }
                 });
-                html += '<div class="prop-group"><label>分配</label><input type="text" data-prop="distribution" value="' + this._esc(node.properties.distribution || '') + '" placeholder="例: 50,50"></div>';
-                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                html += '<div class="prop-group"><label>' + t('props.distribution') + '</label><input type="text" data-prop="distribution" value="' + this._esc(node.properties.distribution || '') + '" placeholder="' + this._esc(t('props.distribution.placeholder')) + '"></div>';
+                html += this._selectField(t('props.activation'), 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
                 break;
 
             case 'trader':
-                html += this._numberField('交換レート', 'exchangeRate', node.properties.exchangeRate || 1);
-                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                html += this._numberField(t('props.exchangeRate'), 'exchangeRate', node.properties.exchangeRate || 1);
+                html += this._selectField(t('props.activation'), 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
                 break;
 
             case 'register':
-                html += this._numberField('値', 'value', node.properties.value || 0);
-                html += '<div class="prop-group"><label>計算式</label><textarea data-prop="formula" placeholder="例: {プール1} * 2">' + this._esc(node.properties.formula || '') + '</textarea></div>';
+                html += this._numberField(t('props.value'), 'value', node.properties.value || 0);
+                html += '<div class="prop-group"><label>' + t('props.formula') + '</label><textarea data-prop="formula" placeholder="' + this._esc(t('props.formula.placeholder')) + '">' + this._esc(node.properties.formula || '') + '</textarea></div>';
                 break;
 
             case 'endCondition':
-                html += '<div class="prop-group"><label>条件</label><textarea data-prop="condition" placeholder="例: {プール1} >= 100">' + this._esc(node.properties.condition || '') + '</textarea></div>';
+                html += '<div class="prop-group"><label>' + t('props.condition') + '</label><textarea data-prop="condition" placeholder="' + this._esc(t('props.condition.placeholder')) + '">' + this._esc(node.properties.condition || '') + '</textarea></div>';
                 break;
 
             case 'chart':
-                html += this._numberField('最大データ点', 'maxDataPoints', node.properties.maxDataPoints || 100);
+                html += this._numberField(t('props.maxDataPoints'), 'maxDataPoints', node.properties.maxDataPoints || 100);
                 // Show tracked series info
                 if (node.chartData) {
                     var series = Object.keys(node.chartData);
                     if (series.length > 0) {
-                        html += '<div class="prop-group"><label>記録中</label><input type="text" value="' + this._esc(series.join(', ')) + '" readonly style="opacity:0.7"></div>';
+                        html += '<div class="prop-group"><label>' + t('props.recording') + '</label><input type="text" value="' + this._esc(series.join(', ')) + '" readonly style="opacity:0.7"></div>';
                     }
                 }
                 break;
 
             case 'delay':
-                html += this._numberField('遅延ステップ', 'delay', node.properties.delay || 3);
-                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                html += this._numberField(t('props.delaySteps'), 'delay', node.properties.delay || 3);
+                html += this._selectField(t('props.activation'), 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
                 break;
 
             case 'queue':
-                html += this._numberField('容量 (-1=無限)', 'capacity', node.properties.capacity);
-                html += this._selectField('アクティベーション', 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
+                html += this._numberField(t('props.capacity'), 'capacity', node.properties.capacity);
+                html += this._selectField(t('props.activation'), 'activationMode', node.properties.activationMode, M.ACTIVATION_MODES);
                 break;
 
             case 'textLabel':
-                html += '<div class="prop-group"><label>テキスト</label><textarea data-prop="text" placeholder="テキストを入力...">' + this._esc(node.properties.text || '') + '</textarea></div>';
+                html += '<div class="prop-group"><label>' + t('props.text') + '</label><textarea data-prop="text" placeholder="' + this._esc(t('props.text.placeholder')) + '">' + this._esc(node.properties.text || '') + '</textarea></div>';
                 break;
 
             case 'group':
@@ -121,8 +122,8 @@
         }
 
         // Position
-        html += '<div class="prop-group"><label>X座標</label><input type="number" data-prop="x" value="' + Math.round(node.x) + '"></div>';
-        html += '<div class="prop-group"><label>Y座標</label><input type="number" data-prop="y" value="' + Math.round(node.y) + '"></div>';
+        html += '<div class="prop-group"><label>' + t('props.x') + '</label><input type="number" data-prop="x" value="' + Math.round(node.x) + '"></div>';
+        html += '<div class="prop-group"><label>' + t('props.y') + '</label><input type="number" data-prop="y" value="' + Math.round(node.y) + '"></div>';
 
         this.content.innerHTML = html;
         this._bindInputEvents();
@@ -132,35 +133,36 @@
         this._currentElement = conn;
         this._currentType = 'connection';
         var html = '';
+        var t = M.t;
 
         var typeDef = conn.getTypeDef();
         html += '<div class="prop-type prop-type-' + conn.type + '">' + typeDef.name + '</div>';
 
-        html += '<div class="prop-group"><label>ID</label><input type="text" value="' + conn.id + '" readonly style="opacity:0.5"></div>';
+        html += '<div class="prop-group"><label>' + t('props.id') + '</label><input type="text" value="' + conn.id + '" readonly style="opacity:0.5"></div>';
 
         if (conn.type === 'resourceConnection') {
-            html += '<div class="prop-group"><label>レート</label><input type="text" data-prop="rate" value="' + this._esc(String(conn.properties.rate || 1)) + '" placeholder="例: 1, D6, &3, /2"></div>';
-            html += '<div class="prop-group"><label>ラベル</label><input type="text" data-prop="label" value="' + this._esc(conn.properties.label || '') + '"></div>';
-            html += '<div class="prop-group"><label>色フィルター</label><select data-prop="colorFilter">';
-            html += '<option value="">全色</option>';
-            html += '<option value="#ff9800"' + (conn.properties.colorFilter === '#ff9800' ? ' selected' : '') + '>オレンジ</option>';
-            html += '<option value="#2196f3"' + (conn.properties.colorFilter === '#2196f3' ? ' selected' : '') + '>ブルー</option>';
-            html += '<option value="#4caf50"' + (conn.properties.colorFilter === '#4caf50' ? ' selected' : '') + '>グリーン</option>';
-            html += '<option value="#f44336"' + (conn.properties.colorFilter === '#f44336' ? ' selected' : '') + '>レッド</option>';
-            html += '<option value="#9c27b0"' + (conn.properties.colorFilter === '#9c27b0' ? ' selected' : '') + '>パープル</option>';
+            html += '<div class="prop-group"><label>' + t('props.rate') + '</label><input type="text" data-prop="rate" value="' + this._esc(String(conn.properties.rate || 1)) + '" placeholder="' + this._esc(t('props.rate.placeholder')) + '"></div>';
+            html += '<div class="prop-group"><label>' + t('props.label') + '</label><input type="text" data-prop="label" value="' + this._esc(conn.properties.label || '') + '"></div>';
+            html += '<div class="prop-group"><label>' + t('props.colorFilter') + '</label><select data-prop="colorFilter">';
+            html += '<option value="">' + t('props.color.all') + '</option>';
+            html += '<option value="#ff9800"' + (conn.properties.colorFilter === '#ff9800' ? ' selected' : '') + '>' + t('props.color.orange') + '</option>';
+            html += '<option value="#2196f3"' + (conn.properties.colorFilter === '#2196f3' ? ' selected' : '') + '>' + t('props.color.blue') + '</option>';
+            html += '<option value="#4caf50"' + (conn.properties.colorFilter === '#4caf50' ? ' selected' : '') + '>' + t('props.color.green') + '</option>';
+            html += '<option value="#f44336"' + (conn.properties.colorFilter === '#f44336' ? ' selected' : '') + '>' + t('props.color.red') + '</option>';
+            html += '<option value="#9c27b0"' + (conn.properties.colorFilter === '#9c27b0' ? ' selected' : '') + '>' + t('props.color.purple') + '</option>';
             html += '</select></div>';
         } else if (conn.type === 'stateConnection') {
-            html += this._selectField('サブタイプ', 'stateType', conn.properties.stateType || 'labelModifier', M.STATE_CONNECTION_TYPES);
-            html += '<div class="prop-group"><label>計算式</label><textarea data-prop="formula" placeholder="例: self * 0.5">' + this._esc(conn.properties.formula || '') + '</textarea></div>';
-            html += '<div class="prop-group"><label>条件</label><input type="text" data-prop="condition" value="' + this._esc(conn.properties.condition || '') + '" placeholder="例: >10"></div>';
-            html += '<div class="prop-group"><label>ラベル</label><input type="text" data-prop="label" value="' + this._esc(conn.properties.label || '') + '"></div>';
+            html += this._selectField(t('props.subtype'), 'stateType', conn.properties.stateType || 'labelModifier', M.STATE_CONNECTION_TYPES);
+            html += '<div class="prop-group"><label>' + t('props.formula') + '</label><textarea data-prop="formula" placeholder="' + this._esc(t('props.formula.conn.placeholder')) + '">' + this._esc(conn.properties.formula || '') + '</textarea></div>';
+            html += '<div class="prop-group"><label>' + t('props.condition') + '</label><input type="text" data-prop="condition" value="' + this._esc(conn.properties.condition || '') + '" placeholder="' + this._esc(t('props.condition.conn.placeholder')) + '"></div>';
+            html += '<div class="prop-group"><label>' + t('props.label') + '</label><input type="text" data-prop="label" value="' + this._esc(conn.properties.label || '') + '"></div>';
         }
 
         // Source/Target info
         var sourceNode = this.app.graph.getNode(conn.sourceId);
         var targetNode = this.app.graph.getNode(conn.targetId);
-        html += '<div class="prop-group"><label>ソース</label><input type="text" value="' + (sourceNode ? sourceNode.properties.name : conn.sourceId) + '" readonly style="opacity:0.5"></div>';
-        html += '<div class="prop-group"><label>ターゲット</label><input type="text" value="' + (targetNode ? targetNode.properties.name : conn.targetId) + '" readonly style="opacity:0.5"></div>';
+        html += '<div class="prop-group"><label>' + t('props.source') + '</label><input type="text" value="' + (sourceNode ? sourceNode.properties.name : conn.sourceId) + '" readonly style="opacity:0.5"></div>';
+        html += '<div class="prop-group"><label>' + t('props.target') + '</label><input type="text" value="' + (targetNode ? targetNode.properties.name : conn.targetId) + '" readonly style="opacity:0.5"></div>';
 
         this.content.innerHTML = html;
         this._bindInputEvents();

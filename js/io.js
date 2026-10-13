@@ -26,7 +26,7 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        this.app.setStatus('ダイアグラムを保存しました');
+        this.app.setStatus(M.t('status.saved'));
     };
 
     IO.prototype.load = function() {
@@ -41,9 +41,9 @@
             try {
                 var data = JSON.parse(e.target.result);
                 self._loadFromData(data);
-                self.app.setStatus('ダイアグラムを読み込みました');
+                self.app.setStatus(M.t('status.loaded'));
             } catch (err) {
-                self.app.setStatus('エラー: ファイルの読み込みに失敗しました');
+                self.app.setStatus(M.t('status.loadError'));
                 console.error('Load error:', err);
             }
         };
@@ -99,7 +99,7 @@
         var data = this._getSampleData(sampleName);
         if (data) {
             this._loadFromData(data);
-            this.app.setStatus('サンプル「' + data.name + '」を読み込みました');
+            this.app.setStatus(M.t('status.sampleLoaded', { name: data.name }));
         }
     };
 

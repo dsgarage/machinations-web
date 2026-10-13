@@ -30,6 +30,7 @@
         this._initTheme();
         this._initChartPanel();
         this._initFeedback();
+        this._initLocale();
 
         // Try auto-load, otherwise show empty
         if (!this.io.autoLoad()) {
@@ -37,6 +38,21 @@
         }
         this.updateStatus();
         this.saveHistory();
+    }
+
+    App.prototype._initLocale = function() {
+        var self = this;
+        M.onLocaleChange(function() {
+            self.updateStatus();
+            if (self.propertiesPanel._currentElement) {
+                self.propertiesPanel.refresh();
+            } else {
+                self.propertiesPanel.clear();
+            }
+            if (self.toolbar) {
+                self.setStatus(self.toolbar._getToolDescription(self.toolbar.currentTool));
+            }
+        });
     }
 
     App.prototype._initHeaderButtons = function() {
@@ -132,7 +148,7 @@
         var btnQuickRun = document.getElementById('btn-quickrun');
         if (btnQuickRun) {
             btnQuickRun.addEventListener('click', function() {
-                var steps = prompt('実行ステップ数を入力:', '100');
+                var steps = prompt(M.t('prompt.quickRunSteps'), '100');
                 if (steps && !isNaN(parseInt(steps))) {
                     if (self.engine.quickRun) {
                         self.engine.quickRun(parseInt(steps));
@@ -149,7 +165,7 @@
                     self.renderer.renderAll();
                     self.updateStatus();
                     self.propertiesPanel.refresh();
-                    self.setStatus('高速実行完了 (' + steps + 'ステップ)');
+                    self.setStatus(M.t('status.quickRunDone', { n: steps }));
                     self.saveHistory();
                 }
             });
@@ -198,7 +214,7 @@
 
         this.engine.onEnd = function(stepCount) {
             self.stopSimulation();
-            self.setStatus('シミュレーション終了 (ステップ ' + stepCount + ')');
+            self.setStatus(M.t('status.simEnded', { n: stepCount }));
         };
     };
 
@@ -223,14 +239,14 @@
         this.engine.start();
         document.getElementById('btn-run').disabled = true;
         document.getElementById('btn-stop').disabled = false;
-        this.setStatus('シミュレーション実行中...');
+        this.setStatus(M.t('status.simRunning'));
     };
 
     App.prototype.stopSimulation = function() {
         this.engine.stop();
         document.getElementById('btn-run').disabled = false;
         document.getElementById('btn-stop').disabled = true;
-        this.setStatus('シミュレーション停止');
+        this.setStatus(M.t('status.simStopped'));
     };
 
     App.prototype.toggleSimulation = function() {
@@ -255,7 +271,7 @@
         this.updateStatus();
         this._chartPanelVisible = false;
         document.getElementById('chart-panel').style.display = 'none';
-        this.setStatus('シミュレーションリセット');
+        this.setStatus(M.t('status.simReset'));
     };
 
     // ===== Diagram Management =====
@@ -271,7 +287,7 @@
         this.updateStatus();
         document.getElementById('btn-run').disabled = false;
         document.getElementById('btn-stop').disabled = true;
-        this.setStatus('新規ダイアグラム');
+        this.setStatus(M.t('status.newDiagram'));
         this.saveHistory();
     };
 
@@ -285,7 +301,7 @@
         var state = this.history.undo(this.graph.toJSON());
         if (state) {
             this._restoreState(state);
-            this.setStatus('元に戻しました');
+            this.setStatus(M.t('status.undone'));
         }
     };
 
@@ -293,7 +309,7 @@
         var state = this.history.redo(this.graph.toJSON());
         if (state) {
             this._restoreState(state);
-            this.setStatus('やり直しました');
+            this.setStatus(M.t('status.redone'));
         }
     };
 
@@ -336,14 +352,16 @@
     // ===== Status =====
 
     App.prototype.updateStatus = function() {
-        document.getElementById('status-step').textContent = 'ステップ: ' + this.graph.stepCount;
-        document.getElementById('status-nodes').textContent = 'ノード: ' + this.graph.getNodeCount();
-        document.getElementById('status-connections').textContent = '接続: ' + this.graph.getConnectionCount();
-        document.getElementById('status-resources').textContent = '総リソース: ' + Math.round(this.graph.getTotalResources());
+        document.getElementById('status-step').textContent = M.t('status.step', { n: this.graph.stepCount });
+        document.getElementById('status-nodes').textContent = M.t('status.nodes', { n: this.graph.getNodeCount() });
+        document.getElementById('status-connections').textContent = M.t('status.connections', { n: this.graph.getConnectionCount() });
+        document.getElementById('status-resources').textContent = M.t('status.resources', { n: Math.round(this.graph.getTotalResources()) });
     };
 
     App.prototype.setStatus = function(msg) {
-        document.getElementById('status-info').textContent = msg;
+        var el = document.getElementById('status-info');
+        el.removeAttribute('data-i18n');
+        el.textContent = msg;
     };
 
     // ===== Chart Data Panel =====
@@ -654,7 +672,7 @@
             var body = document.getElementById('feedback-body').value.trim();
 
             if (!title) {
-                alert('タイトルを入力してください');
+                alert(M.t('feedback.alert.title'));
                 return;
             }
 
@@ -662,12 +680,7 @@
             var token = window.__FEEDBACK_TOKEN__
                 || localStorage.getItem('machinations_github_token');
             if (!token) {
-                token = prompt(
-                    'GitHub Personal Access Token を入力してください\n\n'
-                    + '初回のみ必要です（ブラウザに保存されます）\n'
-                    + 'Fine-Grained PAT を Issues: Read and Write 権限で作成:\n'
-                    + 'https://github.com/settings/personal-access-tokens/new'
-                );
+                token = prompt(M.t('feedback.prompt.token'));
                 if (!token || !token.trim()) return;
                 token = token.trim();
                 localStorage.setItem('machinations_github_token', token);
@@ -681,19 +694,19 @@
                 other: 'question'
             };
             var prefixMap = {
-                enhancement: '[新規実装]',
-                bug: '[バグ]',
-                improvement: '[改善要望]',
-                other: '[その他]'
+                enhancement: M.t('feedback.prefix.enhancement'),
+                bug: M.t('feedback.prefix.bug'),
+                improvement: M.t('feedback.prefix.improvement'),
+                other: M.t('feedback.prefix.other')
             };
 
             var issueTitle = prefixMap[category] + ' ' + title;
-            var issueBody = body + '\n\n---\n_Machinations Web Simulator からのフィードバック_';
+            var issueBody = body + M.t('feedback.issueFooter');
             var label = labelMap[category];
 
             // ボタンを無効化
             feedbackSubmit.disabled = true;
-            feedbackSubmit.textContent = '送信中...';
+            feedbackSubmit.textContent = M.t('feedback.submitting');
 
             fetch('https://api.github.com/repos/dsgarage/machinations-web/issues', {
                 method: 'POST',
@@ -711,24 +724,24 @@
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 feedbackSubmit.disabled = false;
-                feedbackSubmit.textContent = 'GitHub Issue を作成';
+                feedbackSubmit.textContent = M.t('feedback.submit');
 
                 if (data.number) {
                     // 成功
                     document.getElementById('feedback-title').value = '';
                     document.getElementById('feedback-body').value = '';
                     feedbackModal.style.display = 'none';
-                    self.setStatus('Issue #' + data.number + ' を作成しました');
+                    self.setStatus(M.t('status.issueCreated', { n: data.number }));
                 } else {
                     // トークンが無効な場合はクリアして再入力を促す
                     localStorage.removeItem('machinations_github_token');
-                    alert('Issue 作成に失敗しました: ' + (data.message || 'エラー') + '\n\nトークンを再入力してください');
+                    alert(M.t('feedback.alert.fail', { message: data.message || 'error' }));
                 }
             })
             .catch(function(err) {
                 feedbackSubmit.disabled = false;
-                feedbackSubmit.textContent = 'GitHub Issue を作成';
-                alert('通信エラー: ' + err.message);
+                feedbackSubmit.textContent = M.t('feedback.submit');
+                alert(M.t('feedback.alert.network', { message: err.message }));
             });
         });
     };
@@ -736,15 +749,15 @@
     // ===== Monte Carlo =====
 
     App.prototype.showMonteCarloDialog = function() {
-        var runs = prompt('実行回数:', '100');
+        var runs = prompt(M.t('mc.prompt.runs'), '100');
         if (!runs || isNaN(parseInt(runs))) return;
-        var steps = prompt('1回あたりのステップ数:', '50');
+        var steps = prompt(M.t('mc.prompt.steps'), '50');
         if (!steps || isNaN(parseInt(steps))) return;
 
         runs = parseInt(runs);
         steps = parseInt(steps);
 
-        this.setStatus('モンテカルロ実行中... (' + runs + '回 × ' + steps + 'ステップ)');
+        this.setStatus(M.t('status.monteCarloRunning', { runs: runs, steps: steps }));
 
         var self = this;
         // Use setTimeout to allow status to render
@@ -818,10 +831,10 @@
     App.prototype.showMonteCarloResults = function(results, runs, steps) {
         var html = '<div class="modal-overlay" id="mc-modal" style="display:flex">';
         html += '<div class="modal-content">';
-        html += '<div class="modal-header"><h2>モンテカルロ結果 (' + runs + '回 × ' + steps + 'ステップ)</h2>';
+        html += '<div class="modal-header"><h2>' + M.t('mc.results.title', { runs: runs, steps: steps }) + '</h2>';
         html += '<button class="modal-close-btn" onclick="document.getElementById(\'mc-modal\').remove()">&times;</button></div>';
         html += '<div class="modal-body"><table style="width:100%;border-collapse:collapse">';
-        html += '<tr style="border-bottom:2px solid var(--border-color,#ccc)"><th style="text-align:left;padding:8px">プール</th><th>平均</th><th>標準偏差</th><th>最小</th><th>最大</th></tr>';
+        html += '<tr style="border-bottom:2px solid var(--border-color,#ccc)"><th style="text-align:left;padding:8px">' + M.t('mc.col.pool') + '</th><th>' + M.t('mc.col.avg') + '</th><th>' + M.t('mc.col.stddev') + '</th><th>' + M.t('mc.col.min') + '</th><th>' + M.t('mc.col.max') + '</th></tr>';
 
         for (var nodeId in results) {
             var r = results[nodeId];
@@ -862,12 +875,13 @@
             });
         }
 
-        this.setStatus('モンテカルロ完了');
+        this.setStatus(M.t('status.monteCarloDone'));
     };
 
     // ===== Initialize =====
 
     document.addEventListener('DOMContentLoaded', function() {
+        M.initI18n();
         window.Machinations.app = new App();
     });
 

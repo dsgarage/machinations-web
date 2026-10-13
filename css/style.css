@@ -165,6 +165,28 @@ body {
 .header-right {
     display: flex;
     align-items: center;
+    gap: 4px;
+}
+
+.locale-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 5px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.locale-select:hover {
+    background: var(--accent-light);
+    color: var(--text-primary);
 }
 
 .separator {

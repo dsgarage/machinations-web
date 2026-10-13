@@ -117,6 +117,9 @@ js/
   properties.js          プロパティパネル
   io.js                  保存 / 読込 / サンプル
   toolbar.js             ツールバー
+  i18n.js                ロケールヘルパー
+locales/                 ja / en UI 文字列
+tests/                   Node 組み込みテスト
 .github/workflows/
   pages.yml              GitHub Actions デプロイ
 ```
@@ -136,6 +139,9 @@ cd machinations-web
 
 # ローカルサーバーを起動して開発
 python3 -m http.server 8000
+
+# ロケール catalog の日本語パリティ / en キー集合チェック
+node --test tests/locale-parity.test.js
 
 # main ブランチへの push で GitHub Pages に自動デプロイされます
 ```

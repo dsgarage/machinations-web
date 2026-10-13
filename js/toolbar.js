@@ -62,26 +62,8 @@
     };
 
     Toolbar.prototype._getToolDescription = function(tool) {
-        var descriptions = {
-            select: '選択ツール - ノードをクリック/ドラッグ',
-            pool: 'プール配置 - キャンバスをクリック',
-            source: 'ソース配置 - キャンバスをクリック',
-            drain: 'ドレイン配置 - キャンバスをクリック',
-            converter: 'コンバーター配置 - キャンバスをクリック',
-            gate: 'ゲート配置 - キャンバスをクリック',
-            trader: 'トレーダー配置 - キャンバスをクリック',
-            register: 'レジスター配置 - キャンバスをクリック',
-            endCondition: 'エンドコンディション配置 - キャンバスをクリック',
-            chart: 'チャート配置 - 状態接続で監視対象に接続',
-            delay: 'ディレイ配置 - リソースを指定ステップ遅延',
-            queue: 'キュー配置 - FIFO順でリソースを管理',
-            textLabel: 'テキストラベル配置 - 注釈テキスト',
-            group: 'グループ配置 - ノードをグループ化',
-            resourceConnection: 'リソース接続 - ソースをクリック→ターゲットをクリック',
-            stateConnection: '状態接続 - ソースをクリック→ターゲットをクリック',
-            'delete': '削除 - 要素をクリック'
-        };
-        return descriptions[tool] || '';
+        var key = 'tool.' + tool;
+        return M.t(key) !== key ? M.t(key) : '';
     };
 
     Toolbar.prototype.isNodeTool = function() {

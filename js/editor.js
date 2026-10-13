@@ -296,7 +296,7 @@
             if (node) {
                 this._connecting = true;
                 this._connectionSource = node;
-                this.app.setStatus('ターゲットノードをクリックしてください (Escでキャンセル)');
+                this.app.setStatus(M.t('status.connectTarget'));
             }
         } else {
             // Second click: select target
@@ -525,7 +525,7 @@
             }
 
             this._clipboard = { nodes: nodes, connections: connections };
-            this.app.setStatus(nodes.length + '個コピーしました');
+            this.app.setStatus(M.t('status.copied', { n: nodes.length }));
         }
     };
 
@@ -564,7 +564,7 @@
 
         this.app.updateStatus();
         this.app.saveHistory();
-        this.app.setStatus(this._clipboard.nodes.length + '個ペーストしました');
+        this.app.setStatus(M.t('status.pasted', { n: this._clipboard.nodes.length }));
     };
 
     // ===== Cancel =====

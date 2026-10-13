@@ -18,7 +18,7 @@ window.Machinations = window.Machinations || {};
     // ===== Node Type Definitions =====
     var NODE_TYPES = {
         pool: {
-            name: 'プール',
+            name: '',
             shape: 'circle',
             fill: '#ffffff',
             stroke: '#333333',
@@ -30,7 +30,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         source: {
-            name: 'ソース',
+            name: '',
             shape: 'triangleUp',
             fill: '#e8f5e9',
             stroke: '#4caf50',
@@ -40,7 +40,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         drain: {
-            name: 'ドレイン',
+            name: '',
             shape: 'triangleDown',
             fill: '#ffebee',
             stroke: '#f44336',
@@ -50,7 +50,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         converter: {
-            name: 'コンバーター',
+            name: '',
             shape: 'triangleRight',
             fill: '#fff8e1',
             stroke: '#ff9800',
@@ -61,7 +61,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         gate: {
-            name: 'ゲート',
+            name: '',
             shape: 'diamond',
             fill: '#f3e5f5',
             stroke: '#9c27b0',
@@ -72,7 +72,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         trader: {
-            name: 'トレーダー',
+            name: '',
             shape: 'hexagon',
             fill: '#fff3e0',
             stroke: '#ff5722',
@@ -82,7 +82,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         register: {
-            name: 'レジスター',
+            name: '',
             shape: 'rect',
             fill: '#f5f5f5',
             stroke: '#9e9e9e',
@@ -92,7 +92,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         endCondition: {
-            name: 'エンドコンディション',
+            name: '',
             shape: 'doubleCircle',
             fill: '#ffffff',
             stroke: '#f44336',
@@ -101,7 +101,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         chart: {
-            name: 'チャート',
+            name: '',
             shape: 'chartRect',
             fill: '#e3f2fd',
             stroke: '#1976d2',
@@ -111,7 +111,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         delay: {
-            name: 'ディレイ',
+            name: '',
             shape: 'delayRect',
             fill: '#e0f7fa',
             stroke: '#00838f',
@@ -121,7 +121,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         queue: {
-            name: 'キュー',
+            name: '',
             shape: 'queueRect',
             fill: '#fce4ec',
             stroke: '#c62828',
@@ -131,7 +131,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         textLabel: {
-            name: 'テキストラベル',
+            name: '',
             shape: 'textShape',
             fill: 'transparent',
             stroke: '#999999',
@@ -140,12 +140,12 @@ window.Machinations = window.Machinations || {};
             }
         },
         group: {
-            name: 'グループ',
+            name: '',
             shape: 'groupRect',
             fill: 'rgba(100,100,200,0.05)',
             stroke: '#3f51b5',
             defaults: {
-                name: 'グループ'
+                name: ''
             }
         }
     };
@@ -153,7 +153,7 @@ window.Machinations = window.Machinations || {};
     // ===== Connection Type Definitions =====
     var CONNECTION_TYPES = {
         resourceConnection: {
-            name: 'リソース接続',
+            name: '',
             style: 'solid',
             defaults: {
                 rate: 1,
@@ -161,7 +161,7 @@ window.Machinations = window.Machinations || {};
             }
         },
         stateConnection: {
-            name: '状態接続',
+            name: '',
             style: 'dashed',
             defaults: {
                 stateType: 'labelModifier',
@@ -173,25 +173,63 @@ window.Machinations = window.Machinations || {};
     };
 
     var STATE_CONNECTION_TYPES = {
-        labelModifier: { name: 'ラベル修飾子', marker: 'label' },
-        nodeModifier: { name: 'ノード修飾子', marker: 'node' },
-        trigger: { name: 'トリガー', marker: 'trigger' },
-        activator: { name: 'アクティベーター', marker: 'activator' }
+        labelModifier: { name: '', marker: 'label' },
+        nodeModifier: { name: '', marker: 'node' },
+        trigger: { name: '', marker: 'trigger' },
+        activator: { name: '', marker: 'activator' }
     };
 
     var ACTIVATION_MODES = {
-        automatic: { name: '自動', symbol: '*' },
-        interactive: { name: 'インタラクティブ', symbol: '◎' },
-        passive: { name: '受動', symbol: '' },
-        onStart: { name: '開始時', symbol: 'S' }
+        automatic: { name: '', symbol: '*' },
+        interactive: { name: '', symbol: '◎' },
+        passive: { name: '', symbol: '' },
+        onStart: { name: '', symbol: 'S' }
     };
 
     var PULL_MODES = {
-        pull: { name: 'プル', symbol: '↓' },
-        push: { name: 'プッシュ', symbol: '↑' },
-        pushAll: { name: 'プッシュAll', symbol: '↑&' },
-        any: { name: 'いずれか', symbol: '↕' }
+        pull: { name: '', symbol: '↓' },
+        push: { name: '', symbol: '↑' },
+        pushAll: { name: '', symbol: '↑&' },
+        any: { name: '', symbol: '↕' }
     };
+
+    function refreshTypeLabels() {
+        var t = M.t;
+        NODE_TYPES.pool.name = t('node.pool');
+        NODE_TYPES.source.name = t('node.source');
+        NODE_TYPES.drain.name = t('node.drain');
+        NODE_TYPES.converter.name = t('node.converter');
+        NODE_TYPES.gate.name = t('node.gate');
+        NODE_TYPES.trader.name = t('node.trader');
+        NODE_TYPES.register.name = t('node.register');
+        NODE_TYPES.endCondition.name = t('node.endCondition');
+        NODE_TYPES.chart.name = t('node.chart');
+        NODE_TYPES.delay.name = t('node.delay');
+        NODE_TYPES.queue.name = t('node.queue');
+        NODE_TYPES.textLabel.name = t('node.textLabel');
+        NODE_TYPES.group.name = t('node.group');
+        NODE_TYPES.group.defaults.name = t('node.group');
+
+        CONNECTION_TYPES.resourceConnection.name = t('conn.resource');
+        CONNECTION_TYPES.stateConnection.name = t('conn.state');
+
+        STATE_CONNECTION_TYPES.labelModifier.name = t('state.labelModifier');
+        STATE_CONNECTION_TYPES.nodeModifier.name = t('state.nodeModifier');
+        STATE_CONNECTION_TYPES.trigger.name = t('state.trigger');
+        STATE_CONNECTION_TYPES.activator.name = t('state.activator');
+
+        ACTIVATION_MODES.automatic.name = t('activation.automatic');
+        ACTIVATION_MODES.interactive.name = t('activation.interactive');
+        ACTIVATION_MODES.passive.name = t('activation.passive');
+        ACTIVATION_MODES.onStart.name = t('activation.onStart');
+
+        PULL_MODES.pull.name = t('pull.pull');
+        PULL_MODES.push.name = t('pull.push');
+        PULL_MODES.pushAll.name = t('pull.pushAll');
+        PULL_MODES.any.name = t('pull.any');
+    }
+
+    refreshTypeLabels();
 
     // ===== Node Class =====
     function Node(type, x, y, properties) {
@@ -549,6 +587,7 @@ window.Machinations = window.Machinations || {};
     M.STATE_CONNECTION_TYPES = STATE_CONNECTION_TYPES;
     M.ACTIVATION_MODES = ACTIVATION_MODES;
     M.PULL_MODES = PULL_MODES;
+    M.refreshTypeLabels = refreshTypeLabels;
     M.Node = Node;
     M.Connection = Connection;
     M.Graph = Graph;
